@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>GESTARIAN · Automatiza tu gestión documental con IA</title>
+  <meta name="description" content="Automatiza tu gestión documental con IA. Para profesionales independientes y empresas: toda la gestión con acceso inmediato en tiempo real en tu bolsillo. Explora el Universo GESTARIAN: Lite, Quick, Pro y Enterprise.">
+  <meta name="theme-color" content="#04040a">
+  <meta property="og:title" content="GESTARIAN · El Universo de la gestión documental con IA">
+  <meta property="og:description" content="Para profesionales independientes y empresas. Toda la gestión con acceso inmediato en tiempo real en tu bolsillo.">
+  <meta property="og:type" content="website">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/src/css/styles.css">
+  <link rel="stylesheet" href="/src/css/universe.css">
+
+  <!-- GSAP (animaciones) + Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+  <script src="/src/js/app.js"></script>
+  <script type="module" src="/src/js/universe.js"></script>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="site-header">
+    <a href="#" class="logo" id="logo-home">GESTARIAN</a>
+    <nav class="header-nav" aria-label="Navegación principal">
+      <a href="#universo" class="nav-link" id="nav-universo">El Universo</a>
+      <a href="#planes" class="nav-link" id="nav-planes">Planes</a>
+
+      <div id="user-badge" class="user-profile-badge">
+        <div id="user-avatar" class="user-avatar">U</div>
+        <span id="user-email-display" style="font-weight:600">user@email.com</span>
+        <button class="btn-logout" id="btn-logout" onclick="logoutUser()">Salir</button>
+      </div>
+
+      <button id="btn-login-trigger" class="btn btn-sm" onclick="openAuthModal('login')">Iniciar Sesión</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- HERO -->
+    <section class="hero" id="inicio">
+      <div class="hero-bg"></div>
+      <div class="hero-stars"></div>
+
+      <h1>Ecosistema inteligente de <span class="accent">gestión documental</span></h1>
+      <p class="hero-sub">Automatiza tu gestión documental con IA.</p>
+
+      <div class="hero-actions">
+        <a href="#universo" class="btn btn-primary" id="hero-explore" onclick="window.enterUniverseIntro && window.enterUniverseIntro(event)">
+          Explorar el Universo
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+        </a>
+      </div>
+
+      <a href="#universo" class="scroll-cue" aria-label="Ir al Universo GESTARIAN"><span class="mouse"></span>Desliza</a>
+    </section>
+
+    <!-- EL UNIVERSO GESTARIAN -->
+    <section class="universe" id="universo" aria-labelledby="universe-heading">
+      <canvas id="universe-canvas" tabindex="0" aria-label="Universo GESTARIAN interactivo en 3D: el Sol del Nivel Profesional y los planetas Lite, Quick, Pro y Enterprise"></canvas>
+
+      <div class="universe-title">
+        <h2 id="universe-heading">El Universo GESTARIAN</h2>
+        <p class="universe-fallback">Tu navegador no soporta WebGL. Consulta todos los planes a continuación.</p>
+      </div>
+
+      <div class="u-overlay" id="u-overlay" aria-hidden="true"></div>
+
+      <!-- Panel interactivo del Sol (aparece al pulsar el Sol) -->
+      <div class="sun-panel" id="sun-panel" role="dialog" aria-label="GESTARIAN · Plataforma Integral de Gestión">
+        <button class="sp-close" id="sun-panel-close" aria-label="Volver al universo">&times;</button>
+        <div class="sp-eyebrow">EL SOL DEL UNIVERSO GESTARIAN</div>
+        <h3>GESTARIAN · Ecosistema Integral de Gestión con IA</h3>
+        <p>GESTARIAN es la plataforma definitiva de automatización y gestión documental inteligente para autónomos, pymes y grandes empresas. Centraliza facturación, confección documental, presupuestos, agenda, escaneo OCR de facturas, portal privado de clientes y conexión directa con la Agencia Tributaria (AEAT), eliminando el papeleo repetitivo para que tu negocio crezca sin límites.</p>
+        <div class="sp-plans">
+          <span>LITE · Gratis</span>
+          <span>QUICK · Facturación</span>
+          <span>PRO · IA Profesional</span>
+          <span>ENTERPRISE · Red Empresarial</span>
+        </div>
+        <div class="sp-actions">
+          <button class="btn btn-dark" id="sun-btn-access" onclick="document.getElementById('planes').scrollIntoView({behavior:'smooth'}); exitSunFocus()">Explorar Todos los Planes</button>
+          <button class="btn btn-ghost-gold" id="sun-btn-info" onclick="openSunInfo()">Comparativa Completa</button>
+        </div>
+        <div class="sp-hint">Toca fuera o la cruz para volver al universo</div>
+      </div>
+
+      <button class="btn btn-sm sun-exit" id="sun-exit">← Volver al universo</button>
+      <button class="btn btn-sm cards-exit" id="cards-exit" onclick="window.unpinUniversePlanet && window.unpinUniversePlanet()">✕ Volver al universo</button>
+    </section>
+
+    <!-- PLANES (resumen accesible) -->
+    <section class="section" id="planes" aria-labelledby="planes-heading">
+      <div class="section-head">
+        <h2 id="planes-heading">Un planeta para cada etapa de tu negocio</h2>
+        <p>Empieza gratis y crece hasta la red empresarial con vinculación directa a la AEAT.</p>
+      </div>
+      <div class="plans-grid" id="plans-grid"></div>
+    </section>
+  </main>
+
+  <!-- MODAL: Detalles de planeta -->
+  <div id="modal-details" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="details-title">
+    <div class="modal-container" id="details-container">
+      <button class="modal-close" id="details-close" onclick="closeModal('modal-details')" aria-label="Cerrar">&times;</button>
+      <div id="details-content"></div>
+    </div>
+  </div>
+
+  <!-- MODAL: Más información del Sol -->
+  <div id="modal-sun" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="sun-modal-title">
+    <div class="modal-container wide sun-modal">
+      <button class="modal-close" id="sun-modal-close" onclick="closeModal('modal-sun')" aria-label="Cerrar">&times;</button>
+      <h2 id="sun-modal-title">Nivel Profesional y Asistencia Completa</h2>
+      <p>Los planes que hacen girar el universo. Diseñados para quien no se conforma: inteligencia artificial integrada, clientes conectados y una gestión que se hace sola.</p>
+      <div class="sun-compare">
+        <div class="sun-col" style="--pc: var(--c-pro)">
+          <h3>Pro</h3>
+          <div class="price">59 €/año · hasta 50 empleados</div>
+          <ul>
+            <li>IA + OCR + BD ilimitada</li>
+            <li>Presupuestos, Agenda y avisos fiscales</li>
+            <li>Portal de Cliente por invitación</li>
+            <li>Informes automáticos a gestoría</li>
+            <li>Experiencia audiovisual del vehículo</li>
+          </ul>
+          <button class="btn btn-primary btn-sm" id="sun-modal-pro" onclick="closeModal('modal-sun'); openPlanDetails('pro')">Ver Pro</button>
+        </div>
+        <div class="sun-col" style="--pc: var(--c-ent)">
+          <h3>Enterprise <small style="font-size:.7rem;color:var(--c-gold);vertical-align:middle">PRÓXIMAMENTE</small></h3>
+          <div class="price">299 €/año · hasta 100 empleados</div>
+          <ul>
+            <li>Red empresarial interconectada</li>
+            <li>Vinculación AEAT con certificado digital</li>
+            <li>Órdenes de trabajo y pedidos en red</li>
+            <li>Cobertura total: derivación por agenda</li>
+            <li>Más de 100 empleados: consultar</li>
+          </ul>
+          <button class="btn btn-sm" id="sun-modal-ent" onclick="closeModal('modal-sun'); openPlanDetails('enterprise')">Ver Enterprise</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Satélite Portal de Clientes (Tarjeta emergente) -->
+  <div id="modal-portal-clientes" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="portal-modal-title" onclick="if(event.target===this)closeModal('modal-portal-clientes')">
+    <div class="modal-container portal-modal-card">
+      <button class="modal-close" id="portal-modal-close" onclick="closeModal('modal-portal-clientes')" aria-label="Cerrar">&times;</button>
+      
+      <div class="portal-card-header">
+        <h2 id="portal-modal-title" class="portal-card-title">Portal de Clientes</h2>
+        <div class="portal-card-subtitle">Acceso exclusivo por invitación</div>
+      </div>
+
+      <div class="portal-card-body">
+        <p class="portal-card-description">
+          Tus clientes acceden a su área privada mediante el enlace que les envías por email o WhatsApp. Sin registros complicados, sin contraseñas perdidas. Ellos entran con su email y DNI/CIF, y ven en tiempo real todo lo que haces en su vehículo.
+        </p>
+
+        <div class="portal-card-features">
+          <div class="portal-feature-item">
+            <span class="feature-icon">📩</span>
+            <div class="feature-text"><strong>Invitación automática:</strong> Se envía por email y WhatsApp con un enlace único.</div>
+          </div>
+          <div class="portal-feature-item">
+            <span class="feature-icon">🔐</span>
+            <div class="feature-text"><strong>Acceso seguro:</strong> Email + DNI/CIF contra la base de datos del taller.</div>
+          </div>
+          <div class="portal-feature-item">
+            <span class="feature-icon">📸</span>
+            <div class="feature-text"><strong>Seguimiento visual:</strong> Fotos, vídeos y notas de la evolución del vehículo.</div>
+          </div>
+          <div class="portal-feature-item">
+            <span class="feature-icon">📅</span>
+            <div class="feature-text"><strong>Citas y presupuestos:</strong> Aceptar, proponer nueva fecha o rechazar.</div>
+          </div>
+          <div class="portal-feature-item">
+            <span class="feature-icon">💬</span>
+            <div class="feature-text"><strong>Notificaciones en tiempo real:</strong> Cada acción del taller genera una notificación.</div>
+          </div>
+          <div class="portal-feature-item">
+            <span class="feature-icon">📄</span>
+            <div class="feature-text"><strong>Documentos siempre disponibles:</strong> Facturas, presupuestos y órdenes de trabajo.</div>
+          </div>
+        </div>
+
+        <div class="portal-card-footer-info">
+          <span class="availability-badge">Disponible en la versión Pro y Enterprise.</span>
+        </div>
+
+        <div class="portal-card-actions">
+          <a href="https://clientes-gestarian.web.app" target="_blank" rel="noopener" class="btn btn-primary btn-sm">
+            <span>Acceder al Portal</span>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </a>
+          <button type="button" class="btn btn-sm btn-ghost-gold" onclick="closeModal('modal-portal-clientes'); openExpedientesModal('pro')" style="border-color: rgba(245, 196, 81, 0.4); color: #ffe7a3">
+            📋 Ver Roadmap de Expedientes y Presupuestos
+          </button>
+          <button type="button" class="btn btn-sm btn-ghost-portal" onclick="closeModal('modal-portal-clientes')">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Portal del Usuario - Expedientes, Roadmap & Presupuestos (Pro & Enterprise) -->
+  <div id="modal-expedientes" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="exp-modal-title" onclick="if(event.target===this)closeModal('modal-expedientes')">
+    <div class="modal-container portal-modal-card expedientes-modal">
+      <button class="modal-close" id="exp-modal-close" onclick="closeModal('modal-expedientes')" aria-label="Cerrar">&times;</button>
+      
+      <!-- Barra superior con selector de versión (Pro / Enterprise) -->
+      <div class="exp-top-bar">
+        <div>
+          <h2 id="exp-modal-title" class="portal-card-title" style="font-size: 1.35rem; margin-bottom: 0.2rem">
+            Portal del Usuario · <span id="exp-current-plan-name" style="color: var(--c-pro)">Versión PRO</span>
+          </h2>
+          <div class="portal-card-subtitle" style="font-size: 0.82rem">
+            Gestión documental en tiempo real sincronizada con el Área de Clientes
+          </div>
+        </div>
+
+        <div class="exp-version-selector">
+          <button type="button" class="exp-version-btn active" id="btn-version-pro" onclick="switchExpedientesVersion('pro')">
+            ⚡ Versión PRO
+          </button>
+          <button type="button" class="exp-version-btn" id="btn-version-enterprise" onclick="switchExpedientesVersion('enterprise')">
+            🌐 Versión ENTERPRISE
+          </button>
+        </div>
+      </div>
+
+      <!-- Pestañas de navegación del Portal del Usuario -->
+      <div class="exp-main-tabs">
+        <button type="button" class="exp-tab-btn active" id="tab-exp-roadmap" onclick="switchExpedientesTab('roadmap')">
+          <span>📋</span> Roadmap del Expediente
+        </button>
+        <button type="button" class="exp-tab-btn" id="tab-exp-budgets" onclick="switchExpedientesTab('budgets')">
+          <span>💶</span> Tarjeta del Presupuesto Vinculado
+        </button>
+        <button type="button" class="exp-tab-btn" id="tab-exp-simulator" onclick="switchExpedientesTab('simulator')">
+          <span>📱</span> Simulador: Aceptación desde Área de Clientes
+        </button>
+      </div>
+
+      <!-- CONTENIDO TAB 1: Roadmap de Expedientes -->
+      <div id="view-exp-roadmap" class="exp-view-panel">
+        <!-- Ficha del Expediente Activo -->
+        <div class="exp-summary-card">
+          <div class="exp-meta-item">
+            <span class="exp-meta-label">Número de Expediente</span>
+            <span class="exp-meta-value" style="color: var(--c-quick)">EXP-2026-0842</span>
+          </div>
+          <div class="exp-meta-item">
+            <span class="exp-meta-label">Vehículo / Matrícula</span>
+            <span class="exp-meta-value">Mercedes-Benz A200d · <strong>2849-LKR</strong></span>
+          </div>
+          <div class="exp-meta-item">
+            <span class="exp-meta-label">Cliente Titular</span>
+            <span class="exp-meta-value">Juan Pérez Gómez (48.912.431-K)</span>
+          </div>
+          <div class="exp-meta-item">
+            <span class="exp-meta-label">Presupuesto Asociado</span>
+            <span class="exp-meta-value">
+              <span class="exp-badge-linked" onclick="switchExpedientesTab('budgets')" title="Ver tarjeta completa del presupuesto">
+                🔗 #PRE-2026-419 (459,80 €) →
+              </span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Sección del Roadmap de Fases -->
+        <div class="exp-roadmap-section">
+          <div class="roadmap-header-row">
+            <div class="roadmap-title">
+              <span>🚀</span> Roadmap de Progreso del Expediente
+            </div>
+            <div id="roadmap-status-badge" class="step-badge step-badge-green">
+              <!-- Actualizado dinámicamente -->
+              ✓ PRESUPUESTO ACEPTADO POR EL CLIENTE
+            </div>
+          </div>
+
+          <!-- Timeline de Fases -->
+          <div class="roadmap-timeline">
+            <!-- Fase 1 -->
+            <div class="roadmap-step-item step-completed">
+              <div class="step-node-icon">✓</div>
+              <div class="step-body-content">
+                <div class="step-title-row">
+                  <span class="step-title-text">Fase 1: Entrada y Diagnóstico Inicial del Vehículo</span>
+                  <span class="step-badge step-badge-green">Completado</span>
+                </div>
+                <div class="step-description-text">
+                  Recepción del vehículo en taller, verificación de kilometraje (84.200 km) y escaneo inteligente OBD con IA.
+                </div>
+                <div class="step-audit-log">
+                  <span>📅</span> 07/10/2026 08:30 · Registrado por Taller Central
+                </div>
+              </div>
+            </div>
+
+            <!-- Fase 2 -->
+            <div class="roadmap-step-item step-completed">
+              <div class="step-node-icon">✓</div>
+              <div class="step-body-content">
+                <div class="step-title-row">
+                  <span class="step-title-text">Fase 2: Confección y Envío del Presupuesto #PRE-2026-419</span>
+                  <span class="step-badge step-badge-green">Completado</span>
+                </div>
+                <div class="step-description-text">
+                  Presupuesto detallado generado con OCR de recambios originales (459,80 €) y remitido por email y WhatsApp al cliente con enlace único de acceso.
+                </div>
+                <div class="step-audit-log">
+                  <span>📅</span> 07/10/2026 09:15 · Enviado al cliente con invitación digital
+                </div>
+              </div>
+            </div>
+
+            <!-- Fase 3 (DINÁMICA: SE ACTUALIZA CUANDO EL CLIENTE ACEPTA) -->
+            <div class="roadmap-step-item step-accepted-live" id="roadmap-step-acceptance">
+              <div class="step-node-icon" id="step-3-icon">✓</div>
+              <div class="step-body-content">
+                <div class="step-title-row">
+                  <span class="step-title-text" id="step-3-title">
+                    Fase 3: Aprobación del Presupuesto por el Cliente
+                  </span>
+                  <span class="step-badge step-badge-green" id="step-3-badge">
+                    ✓ Aceptado en Área de Clientes
+                  </span>
+                </div>
+                <div class="step-description-text" id="step-3-desc">
+                  El cliente ha revisado las partidas y ha aceptado el presupuesto #PRE-2026-419 desde su Área de Clientes con firma y conformidad digital.
+                </div>
+                <div class="step-audit-log" id="step-3-log">
+                  <span>🟢</span> <strong id="step-3-timestamp">07/10/2026 09:42:18</strong> · Aceptado por Juan Pérez Gómez (DNI: 48.912.431-K) mediante invitación segura.
+                </div>
+              </div>
+            </div>
+
+            <!-- Fase 4 (DINÁMICA: SE ACTIVA AL ACEPTAR EL PRESUPUESTO) -->
+            <div class="roadmap-step-item step-active-now" id="roadmap-step-execution">
+              <div class="step-node-icon" id="step-4-icon">⚙️</div>
+              <div class="step-body-content">
+                <div class="step-title-row">
+                  <span class="step-title-text" id="step-4-title">
+                    Fase 4: Ejecución de Trabajos y Reparación en Taller
+                  </span>
+                  <span class="step-badge step-badge-purple" id="step-4-badge">
+                    En Curso / Activa
+                  </span>
+                </div>
+                <div class="step-description-text" id="step-4-desc">
+                  Mecánico asignado. Módulo de evolución visual activo: se están registrando fotos y notas del proceso en tiempo real para el cliente.
+                </div>
+                <div class="step-audit-log" id="step-4-log">
+                  <span>📸</span> Seguimiento visual y orden de taller vinculada al expediente EXP-2026-0842.
+                </div>
+              </div>
+            </div>
+
+            <!-- Fase 5 -->
+            <div class="roadmap-step-item">
+              <div class="step-node-icon">5</div>
+              <div class="step-body-content">
+                <div class="step-title-row">
+                  <span class="step-title-text">Fase 5: Control de Calidad y Pruebas de Funcionamiento</span>
+                  <span class="step-badge step-badge-gray">Pendiente</span>
+                </div>
+                <div class="step-description-text">
+                  Test de diagnosis post-reparación y prueba de carretera antes de autorizar la entrega.
+                </div>
+              </div>
+            </div>
+
+            <!-- Fase 6 -->
+            <div class="roadmap-step-item">
+              <div class="step-node-icon">6</div>
+              <div class="step-body-content">
+                <div class="step-title-row">
+                  <span class="step-title-text">Fase 6: Vehículo Listo, Facturación y Entrega</span>
+                  <span class="step-badge step-badge-gray">Pendiente</span>
+                </div>
+                <div class="step-description-text">
+                  Emisión de factura final, notificación automática al cliente y cierre documental del expediente.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Banner de prueba interactiva rápida -->
+        <div class="client-simulator-box">
+          <div class="sim-header-row">
+            <div class="sim-title">
+              <span>⚡</span> Probar interacción en tiempo real desde el Área de Clientes
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button type="button" class="btn-accept-budget-sim" id="btn-quick-accept" onclick="toggleBudgetAcceptedState(true)">
+                <span>✓ Simular Aceptación del Cliente</span>
+              </button>
+              <button type="button" class="btn-reset-sim" onclick="toggleBudgetAcceptedState(false)">
+                <span>↺ Reiniciar a Pendiente</span>
+              </button>
+            </div>
+          </div>
+          <p style="font-size:0.84rem;color:var(--text-muted);margin:0">
+            Al pulsar "Simular Aceptación", el Roadmap de este expediente y la Tarjeta del Presupuesto vinculado se sincronizan instantáneamente reflejando el cambio de estado en la versión PRO y ENTERPRISE.
+          </p>
+        </div>
+      </div>
+
+      <!-- CONTENIDO TAB 2: Tarjetas de Presupuestos Vinculados -->
+      <div id="view-exp-budgets" class="exp-view-panel" style="display:none">
+        <div class="budget-cards-grid">
+          <!-- Tarjeta 1: Vinculada al expediente principal EXP-2026-0842 -->
+          <div class="budget-card budget-accepted" id="budget-card-419">
+            <div class="budget-card-top">
+              <div>
+                <span class="budget-link-pill">
+                  📁 Expediente Vinculado: <strong>EXP-2026-0842</strong>
+                </span>
+                <div class="budget-num-title">Presupuesto #PRE-2026-419</div>
+                <div style="font-size:0.82rem;color:var(--text-muted);margin-top:2px">
+                  Cliente: <strong>Juan Pérez Gómez</strong> · Mercedes-Benz A200d (2849-LKR)
+                </div>
+              </div>
+              <span id="budget-badge-status-419" class="step-badge step-badge-green">
+                🟢 ACEPTADO POR EL CLIENTE
+              </span>
+            </div>
+
+            <div class="budget-items-list">
+              <div class="budget-item-row">
+                <span>Mano de obra especializada (Mecánica + Diagnosis)</span>
+                <strong>180,00 €</strong>
+              </div>
+              <div class="budget-item-row">
+                <span>Kit de distribución + Bomba de agua original</span>
+                <strong>145,00 €</strong>
+              </div>
+              <div class="budget-item-row">
+                <span>Sustitución de fluidos y filtros</span>
+                <strong>55,00 €</strong>
+              </div>
+              <div class="budget-item-row" style="color: #86efac">
+                <span>Escaneo OCR e Informe IA integrado</span>
+                <strong>0,00 € (Incluido)</strong>
+              </div>
+              <div class="budget-total-row">
+                <span>Total Presupuesto (IVA 21% inc.):</span>
+                <span style="color: var(--c-gold)">459,80 €</span>
+              </div>
+            </div>
+
+            <div style="font-size:0.8rem;color:#cbd5e1;padding:0.4rem 0.6rem;background:rgba(0,0,0,0.3);border-radius:6px;margin-bottom:0.8rem">
+              <span id="budget-audit-text-419">
+                ✓ <strong>Presupuesto aceptado digitalmente</strong> por el cliente el <span id="budget-time-display">07/10/2026 a las 09:42</span>. Expediente en fase de reparación.
+              </span>
+            </div>
+
+            <div class="budget-actions-row">
+              <button type="button" class="btn btn-sm btn-primary" onclick="switchExpedientesTab('roadmap')">
+                <span>Ver Roadmap del Expediente EXP-2026-0842 →</span>
+              </button>
+              <button type="button" class="btn btn-sm btn-ghost-portal" onclick="switchExpedientesTab('simulator')">
+                <span>📱 Probar en Simulador</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Tarjeta 2: Presupuesto Flotas (Enterprise / Red) -->
+          <div class="budget-card" id="budget-card-512">
+            <div class="budget-card-top">
+              <div>
+                <span class="budget-link-pill" style="background:rgba(99,102,241,0.2);border-color:rgba(99,102,241,0.5);color:#cfc6ff">
+                  🏢 Expediente Vinculado: <strong>EXP-2026-0915 (Red Flotas)</strong>
+                </span>
+                <div class="budget-num-title">Presupuesto #PRE-2026-512</div>
+                <div style="font-size:0.82rem;color:var(--text-muted);margin-top:2px">
+                  Empresa: <strong>Transportes & Logística S.L.</strong> · Ford Transit (7104-MTP)
+                </div>
+              </div>
+              <span class="step-badge step-badge-green">
+                🟢 ACEPTADO (Corporativo)
+              </span>
+            </div>
+
+            <div class="budget-items-list">
+              <div class="budget-item-row">
+                <span>Mantenimiento integral flota + Frenos</span>
+                <strong>320,00 €</strong>
+              </div>
+              <div class="budget-item-row">
+                <span>Neumáticos reforzados (2 uds)</span>
+                <strong>210,00 €</strong>
+              </div>
+              <div class="budget-item-row">
+                <span>Certificación digital directa AEAT</span>
+                <strong>0,00 € (Enterprise)</strong>
+              </div>
+              <div class="budget-total-row">
+                <span>Total Presupuesto (IVA inc.):</span>
+                <span style="color: var(--c-gold)">641,30 €</span>
+              </div>
+            </div>
+
+            <div style="font-size:0.8rem;color:#cbd5e1;padding:0.4rem 0.6rem;background:rgba(0,0,0,0.3);border-radius:6px;margin-bottom:0.8rem">
+              🏢 <strong>Aceptado y derivado en red empresarial</strong>. Certificado AEAT vinculado con validez legal.
+            </div>
+
+            <div class="budget-actions-row">
+              <button type="button" class="btn btn-sm btn-ghost-gold" onclick="alert('Expediente sincronizado con las 10 estaciones de la Red Empresarial Enterprise.')">
+                <span>🌐 Ver Red Empresarial</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CONTENIDO TAB 3: Simulador del Área de Clientes -->
+      <div id="view-exp-simulator" class="exp-view-panel" style="display:none">
+        <div style="background:rgba(15,23,42,0.8);border:1px solid rgba(168,85,247,0.3);border-radius:14px;padding:1.4rem;max-width:540px;margin:0 auto">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:1rem;padding-bottom:0.8rem;border-bottom:1px solid rgba(255,255,255,0.1)">
+            <div style="font-size:1.8rem">📱</div>
+            <div>
+              <div style="font-weight:800;color:#fff;font-size:1.05rem">Área Privada del Cliente (clientes-gestarian.web.app)</div>
+              <div style="font-size:0.8rem;color:#94a3b8">Bienvenido, Juan Pérez Gómez · Mercedes-Benz A200d (2849-LKR)</div>
+            </div>
+          </div>
+
+          <div style="background:rgba(0,0,0,0.4);border-radius:10px;padding:1rem;margin-bottom:1.2rem;border:1px solid rgba(255,255,255,0.08)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+              <span style="font-weight:700;color:#fff">Presupuesto #PRE-2026-419</span>
+              <span id="sim-client-badge" class="step-badge step-badge-green">ACEPTADO</span>
+            </div>
+            <div style="font-size:0.82rem;color:var(--text-muted);margin-bottom:0.6rem">
+              Expediente vinculado: <strong>EXP-2026-0842</strong>
+            </div>
+            <div style="font-size:0.84rem;color:#e2e8f0;line-height:1.4;margin-bottom:0.6rem">
+              • Mano de obra especializada (Mecánica + Diagnosis)<br>
+              • Kit de distribución + Bomba de agua original<br>
+              • Sustitución de fluidos y filtros
+            </div>
+            <div style="font-size:1.15rem;font-weight:800;color:var(--c-gold);text-align:right">
+              Total: 459,80 €
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:0.7rem">
+            <button type="button" class="btn btn-primary" id="btn-sim-accept-action" onclick="toggleBudgetAcceptedState(true); switchExpedientesTab('roadmap');" style="background:#16a34a;justify-content:center">
+              <span>✓ Aceptar Presupuesto desde el Área de Clientes</span>
+            </button>
+            <button type="button" class="btn btn-ghost-portal" onclick="toggleBudgetAcceptedState(false)" style="justify-content:center">
+              <span>Revertir a Estado Pendiente</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="portal-card-actions" style="margin-top:1.4rem;border-top:1px solid rgba(255,255,255,0.08);padding-top:1rem">
+        <button type="button" class="btn btn-sm btn-ghost-portal" onclick="closeModal('modal-expedientes')">Cerrar Portal</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Tarjeta Emergente de Versión Lite -->
+  <div id="modal-lite" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="lite-modal-title" onclick="if(event.target===this)closeModal('modal-lite')">
+    <div class="modal-container portal-modal-card lite-modal-card">
+      <button class="modal-close" id="lite-modal-close" onclick="closeModal('modal-lite')" aria-label="Cerrar">&times;</button>
+      
+      <div class="portal-card-header" style="border-bottom-color: rgba(124, 147, 255, 0.3)">
+        <h2 id="lite-modal-title" class="portal-card-title">Versión Lite · Gestión Local</h2>
+        <div class="portal-card-subtitle" style="color: #93a5ff">Gestión ágil sin complicaciones ni bases de datos</div>
+      </div>
+
+      <div class="portal-card-body">
+        <p class="portal-card-description">
+          Ideal para autónomos y profesionales que necesitan confeccionar presupuestos y facturas al instante sin depender de la nube, con guardado directo en su propio equipo.
+        </p>
+
+        <div class="portal-card-features">
+          <div class="portal-feature-item">
+            <span class="feature-icon">📝</span>
+            <div class="feature-text"><strong>Confección de documentos:</strong> Redacta presupuestos y facturas en cuestión de segundos.</div>
+          </div>
+          <div class="portal-feature-item">
+            <span class="feature-icon">📲</span>
+            <div class="feature-text"><strong>WhatsApp y Email:</strong> Comparte presupuestos y facturas con tus clientes con un click.</div>
+          </div>
+          <div class="portal-feature-item">
+            <span class="feature-icon">🖨️</span>
+            <div class="feature-text"><strong>Impresión directa:</strong> Descarga e imprime en formato PDF estándar de alta resolución.</div>
+          </div>
+          <div class="portal-feature-item">
+            <span class="feature-icon">💻</span>
+            <div class="feature-text"><strong>Guardado local seguro:</strong> Tus datos permanecen en tu ordenador o dispositivo.</div>
+          </div>
+          <div class="portal-feature-item">
+            <span class="feature-icon">📁</span>
+            <div class="feature-text"><strong>Historial interanual:</strong> Organiza tus facturas de diferentes ejercicios fiscales gratis.</div>
+          </div>
+          <div class="portal-feature-item">
+            <span class="feature-icon">🆓</span>
+            <div class="feature-text"><strong>Gratis para siempre:</strong> Sin cuotas mensuales, sin límites ocultos.</div>
+          </div>
+        </div>
+
+        <div class="portal-card-footer-info">
+          <span class="availability-badge" style="color: #dbe3ff; background: rgba(124, 147, 255, 0.16); border-color: rgba(124, 147, 255, 0.35)">Gratis para siempre · Sin base de datos</span>
+        </div>
+
+        <div class="portal-card-actions">
+          <a href="https://lite-gestarian.web.app" target="_blank" rel="noopener" class="btn btn-primary btn-sm" style="background: #4f6cf7">
+            <span>Acceder a Lite (lite-gestarian.web.app)</span>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </a>
+          <button type="button" class="btn btn-sm btn-ghost-portal" onclick="closeModal('modal-lite')">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Tarjeta Emergente de Versión Quick -->
+  <div id="modal-quick" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="quick-modal-title" onclick="if(event.target===this)closeModal('modal-quick')">
+    <div class="modal-container portal-modal-card quick-modal-card">
+      <button class="modal-close" id="quick-modal-close" onclick="closeModal('modal-quick')" aria-label="Cerrar">&times;</button>
+      
+      <div class="portal-card-header" style="border-bottom-color: rgba(56, 189, 248, 0.3)">
+        <h2 id="quick-modal-title" class="portal-card-title">Versión Quick · Facturación Rápida</h2>
+        <div class="portal-card-subtitle" style="color: #7dd3fc">Facturas en 1-click con base de datos en la nube</div>
+      </div>
+
+      <div class="portal-card-body">
+        <p class="portal-card-description">
+          El salto profesional hacia la automatización: base de datos propia para clientes y proveedores con opción de escaneo inteligente OCR de facturas recibidas.
+        </p>
+
+        <div class="portal-card-features">
+          <div class="portal-feature-item">
+            <span class="feature-icon">⚡</span>
+            <div class="feature-text"><strong>Facturas en 1-click:</strong> Asocia clientes y artículos guardados para facturar de inmediato.</div>
+          </div>
+          <div class="portal-feature-item">
+            <span class="feature-icon">👥</span>
+            <div class="feature-text"><strong>Base de datos en la nube:</strong> Agenda centralizada de clientes y proveedores accesible 24/7.</div>
+          </div>
+          <div class="portal-feature-item">
+            <span class="feature-icon">🔍</span>
+            <div class="feature-text"><strong>Escaneo OCR opcional:</strong> Escanea tickets y facturas recibidas para extraer CIF y totales automáticamente.</div>
+          </div>
+          <div class="portal-feature-item">
+            <span class="feature-icon">📧</span>
+            <div class="feature-text"><strong>Rastreo por Email:</strong> Notificaciones automáticas de facturas recibidas por correo electrónico.</div>
+          </div>
+          <div class="portal-feature-item">
+            <span class="feature-icon">☁️</span>
+            <div class="feature-text"><strong>Sincronización multidispositivo:</strong> Acceso seguro desde tu móvil, tablet o PC.</div>
+          </div>
+          <div class="portal-feature-item">
+            <span class="feature-icon">💸</span>
+            <div class="feature-text"><strong>Gratis + extras:</strong> Todo lo básico incluido gratis con módulos opcionales a tu medida.</div>
+          </div>
+        </div>
+
+        <div class="portal-card-footer-info">
+          <span class="availability-badge" style="color: #e0f2fe; background: rgba(56, 189, 248, 0.16); border-color: rgba(56, 189, 248, 0.35)">Gratis + extras opcionales · BD Clientes y Proveedores</span>
+        </div>
+
+        <div class="portal-card-actions">
+          <a href="https://quick-gestarian.web.app" target="_blank" rel="noopener" class="btn btn-primary btn-sm" style="background: #0284c7">
+            <span>Acceder a Quick (quick-gestarian.web.app)</span>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </a>
+          <button type="button" class="btn btn-sm btn-ghost-portal" onclick="closeModal('modal-quick')">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Auth (Registro fiscal & Login) -->
+  <div id="modal-auth" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Acceso a GESTARIAN">
+    <div class="modal-container">
+      <button class="modal-close" id="auth-close" onclick="closeModal('modal-auth')" aria-label="Cerrar">&times;</button>
+
+      <div class="auth-tabs">
+        <button id="tab-register" class="auth-tab active" onclick="switchAuthTab('register')">Registro Fiscal</button>
+        <button id="tab-login" class="auth-tab" onclick="switchAuthTab('login')">Iniciar Sesión</button>
+      </div>
+
+      <div id="auth-plan-badge" class="plan-selected-tag">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        Plan Seleccionado: <span id="auth-plan-name">PRO</span>
+      </div>
+
+      <div id="auth-error" class="alert-box error"></div>
+      <div id="auth-success" class="alert-box success"></div>
+
+      <form id="form-register" onsubmit="handleRegisterSubmit(event)">
+        <div class="form-group">
+          <label for="reg-razon">Nombre o Razón Social *</label>
+          <input type="text" id="reg-razon" class="form-control" placeholder="Ej: Talleres Gomez S.L. / Juan Perez" required>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="reg-nif">NIF / CIF *</label>
+            <input type="text" id="reg-nif" class="form-control" placeholder="B12345678" required>
+          </div>
+          <div class="form-group">
+            <label for="reg-telefono">Teléfono / WhatsApp *</label>
+            <input type="tel" id="reg-telefono" class="form-control" placeholder="+34 600000000" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="reg-direccion">Dirección Fiscal *</label>
+          <input type="text" id="reg-direccion" class="form-control" placeholder="Calle Ejemplo 123, Madrid" required>
+        </div>
+        <div class="form-group">
+          <label for="reg-email">Email Corporativo *</label>
+          <input type="email" id="reg-email" class="form-control" placeholder="contacto@empresa.com" required>
+        </div>
+        <div class="form-group">
+          <label for="reg-password">Contraseña *</label>
+          <input type="password" id="reg-password" class="form-control" placeholder="Mínimo 6 caracteres" required minlength="6">
+        </div>
+        <button type="submit" id="btn-submit-reg" class="btn btn-primary btn-submit"><span>Completar Registro y Entrar</span></button>
+      </form>
+
+      <form id="form-login" style="display:none" onsubmit="handleLoginSubmit(event)">
+        <div class="form-group">
+          <label for="login-email">Email Registrado *</label>
+          <input type="email" id="login-email" class="form-control" placeholder="contacto@empresa.com" required>
+        </div>
+        <div class="form-group">
+          <label for="login-password">Contraseña *</label>
+          <input type="password" id="login-password" class="form-control" placeholder="Tu contraseña" required>
+        </div>
+        <button type="submit" id="btn-submit-login" class="btn btn-primary btn-submit"><span>Iniciar Sesión y Entrar</span></button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Registro completado -->
+  <div id="modal-success-dash" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Registro completado">
+    <div class="modal-container">
+      <button class="modal-close" id="success-close" onclick="closeModal('modal-success-dash')" aria-label="Cerrar">&times;</button>
+      <div class="success-modal-content">
+        <div class="success-icon-circle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        </div>
+        <h2 style="font-size:1.8rem;margin-bottom:.5rem">¡Registro completado con éxito!</h2>
+        <p style="color:var(--text-muted)">Hemos registrado tus datos fiscales correctamente. Te hemos enviado un email de bienvenida con tu acceso.</p>
+        <div class="success-box">
+          <div style="font-weight:700;color:var(--c-quick);margin-bottom:.3rem">Acceso a tu Panel de Control:</div>
+          <div id="success-plan-display">Plan Activado: <strong style="color:var(--c-pro)">GESTARIAN PRO</strong></div>
+        </div>
+        <button id="btn-enter-dashboard" class="btn btn-primary btn-submit" onclick="redirectToDashboard()"><span>Entrar al Dashboard</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Reproductor de Vídeo Explicativo Interactivo -->
+  <div id="modal-video" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Reproductor de vídeo explicativo">
+    <div class="modal-container wide video-modal">
+      <button class="modal-close" id="video-close" onclick="closeVideoModal()" aria-label="Cerrar">&times;</button>
+      
+      <div class="video-player-grid">
+        <!-- Columna Izquierda: El reproductor de vídeo animado -->
+        <div class="video-main-screen">
+          <div class="video-screen-header">
+            <span class="badge-live"><span class="pulse-dot"></span>PRESENTACIÓN EN VIVO</span>
+            <span id="video-plan-badge" class="badge-plan">VERSIÓN PRO</span>
+            <button class="btn-video-exit-top" onclick="closeVideoModal()" aria-label="Salir del vídeo">← Salir</button>
+          </div>
+          
+          <!-- Contenido dinámico del vídeo (CSS Slides y animación) -->
+          <div class="video-screen-content" id="video-screen-content">
+            <!-- Cargado por JS -->
+          </div>
+          
+          <!-- Barra de progreso del vídeo -->
+          <div class="video-progress-bar-container" onclick="handleProgressBarClick(event)">
+            <div class="video-progress-filled" id="video-progress-filled"></div>
+          </div>
+          
+          <!-- Controles de reproducción -->
+          <div class="video-controls-row">
+            <button class="ctrl-btn" onclick="prevChapter()" aria-label="Anterior">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="19" x2="5" y2="5"></line></svg>
+            </button>
+            <button class="ctrl-btn play-pause-btn" onclick="togglePlayVideo()" id="btn-play-pause" aria-label="Reproducir/Pausar">
+              <!-- Cargado por JS (Play o Pause icon) -->
+              <svg viewBox="0 0 24 24" fill="currentColor" id="play-icon"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            </button>
+            <button class="ctrl-btn" onclick="nextChapter()" aria-label="Siguiente">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19"></line></svg>
+            </button>
+
+            <!-- Botón de Audio / Voz -->
+            <button class="ctrl-btn" id="btn-audio-toggle" onclick="toggleVideoAudio()" aria-label="Activar o silenciar voz" title="Activar/Silenciar locución">
+              <span id="audio-btn-icon" style="font-size:16px">🔊</span>
+            </button>
+            
+            <!-- Simulador de ondas de voz activa (vocal visualizer) -->
+            <div class="voice-wave-container" id="voice-wave" title="Locución en español activa">
+              <span class="wave-bar bar-1"></span>
+              <span class="wave-bar bar-2"></span>
+              <span class="wave-bar bar-3"></span>
+              <span class="wave-bar bar-4"></span>
+              <span class="wave-bar bar-5"></span>
+            </div>
+            
+            <span id="video-timer" class="video-timer">00:00 / 01:20</span>
+            <button class="btn btn-sm btn-video-exit-bottom" onclick="closeVideoModal()" title="Cerrar reproductor de vídeo">✕ Salir</button>
+          </div>
+          
+          <!-- Subtítulos / Cuadro de explicación en Español de España -->
+          <div class="video-subtitles-container">
+            <div class="subtitles-avatar">🎙️</div>
+            <div class="subtitles-body">
+              <div class="subtitles-text" id="video-subtitles-text">
+                Iniciando vídeo explicativo en Español de España...
+              </div>
+              <div class="subtitles-meta-row">
+                <button class="btn btn-sm btn-ghost-gold btn-force-speech" id="btn-force-speech" onclick="manualTriggerSpeech()">📢 Escuchar locución</button>
+                <span id="audio-device-hint" class="audio-device-hint">Locución con voz en Español de España (es-ES)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Columna Derecha: El Playlist de capítulos de vídeo -->
+        <div class="video-playlist-column">
+          <div class="playlist-header">Capítulos de la Versión</div>
+          <div class="playlist-items-container" id="video-playlist-items">
+            <!-- Cargado por JS -->
+          </div>
+          <div class="playlist-footer-info">
+            <strong>Audio oficial:</strong> Voz y locución en Español (España) sincronizada con las diapositivas.
+            <div class="playlist-device-note">Compatible con móviles Android, iOS y Huawei con audio sintético.</div>
+          </div>
+          <button class="btn btn-sm btn-video-exit-playlist" onclick="closeVideoModal()">✕ Salir del vídeo</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div>
+      <a href="#" class="logo" style="font-size:1.35rem">GESTARIAN</a>
+      <p>© 2026 GESTARIAN. Todos los derechos reservados. Gestión documental automatizada con IA.</p>
+    </div>
+    <div class="footer-links">
+      <a href="#universo" id="footer-universo">El Universo</a>
+      <a href="#planes" id="footer-planes">Planes y Precios</a>
+      <a href="javascript:void(0)" id="footer-login" onclick="openAuthModal('login')">Iniciar Sesión</a>
+    </div>
+  </footer>
+
+</body>
+</html>
