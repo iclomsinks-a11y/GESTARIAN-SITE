@@ -341,15 +341,65 @@ function openPortalClientesInfo() {
 
 /* =========================================================
    GESTIÓN DE EXPEDIENTES, ROADMAP Y PRESUPUESTOS (PRO & ENTERPRISE)
+   Arquitectura Minimalista Auténtica Gestarian Pro
    ========================================================= */
+let isCitaConfirmada = true;
+let citaFecha = '2026-10-12';
+let citaHora = '09:30';
 let isBudget419Accepted = true;
+let isRepair419Finished = false;
+let isCalidadRoadmapActive = false;
+let roadmapCobradoAmount = 0.00;
+let roadmapCobroHistorial = [];
 let currentExpVersion = 'pro';
 let currentExpTab = 'roadmap';
+let activeMinimalistDoc = null;
+
+function formatearFechaCitaCorta(fechaIso) {
+  if (!fechaIso) return '12 OCT';
+  try {
+    const meses = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+    const parts = fechaIso.split('-');
+    if (parts.length === 3) {
+      const dia = parseInt(parts[2], 10);
+      const mes = meses[parseInt(parts[1], 10) - 1] || 'OCT';
+      return `${dia} ${mes}`;
+    }
+    return fechaIso;
+  } catch(e) {
+    return '12 OCT';
+  }
+}
 
 function initExpedientesState() {
-  const saved = localStorage.getItem('gestarian_budget_419_accepted');
-  if (saved !== null) {
-    isBudget419Accepted = saved === 'true';
+  const savedCita = localStorage.getItem('gestarian_cita_confirmada');
+  if (savedCita !== null) {
+    isCitaConfirmada = savedCita === 'true';
+  }
+  const savedCitaFecha = localStorage.getItem('gestarian_cita_fecha');
+  if (savedCitaFecha) citaFecha = savedCitaFecha;
+  const savedCitaHora = localStorage.getItem('gestarian_cita_hora');
+  if (savedCitaHora) citaHora = savedCitaHora;
+
+  const savedBudget = localStorage.getItem('gestarian_budget_419_accepted');
+  if (savedBudget !== null) {
+    isBudget419Accepted = savedBudget === 'true';
+  }
+  const savedRepair = localStorage.getItem('gestarian_repair_419_finished');
+  if (savedRepair !== null) {
+    isRepair419Finished = savedRepair === 'true';
+  }
+  const savedCalidad = localStorage.getItem('gestarian_calidad_active');
+  if (savedCalidad !== null) {
+    isCalidadRoadmapActive = savedCalidad === 'true';
+  }
+  const savedCobrado = localStorage.getItem('gestarian_cobrado_amount');
+  if (savedCobrado !== null) {
+    roadmapCobradoAmount = parseFloat(savedCobrado) || 0;
+  }
+  const savedHistorial = localStorage.getItem('gestarian_cobro_historial');
+  if (savedHistorial) {
+    try { roadmapCobroHistorial = JSON.parse(savedHistorial) || []; } catch(e) {}
   }
 }
 
@@ -369,6 +419,8 @@ function switchExpedientesVersion(version) {
   const btnPro = document.getElementById('btn-version-pro');
   const btnEnt = document.getElementById('btn-version-enterprise');
   const titlePlanName = document.getElementById('exp-current-plan-name');
+  const enterpriseStrip = document.getElementById('exp-enterprise-network-strip');
+  const enterpriseCitaAction = document.getElementById('cita-enterprise-action');
   
   if (btnPro && btnEnt) {
     btnPro.classList.toggle('active', !isEnt);
@@ -379,6 +431,14 @@ function switchExpedientesVersion(version) {
   if (titlePlanName) {
     titlePlanName.textContent = isEnt ? 'Versión ENTERPRISE' : 'Versión PRO';
     titlePlanName.style.color = isEnt ? 'var(--c-ent)' : 'var(--c-pro)';
+  }
+
+  if (enterpriseStrip) {
+    enterpriseStrip.style.display = isEnt ? 'flex' : 'none';
+  }
+
+  if (enterpriseCitaAction) {
+    enterpriseCitaAction.style.display = isEnt ? 'inline-flex' : 'none';
   }
 }
 
@@ -393,77 +453,307 @@ function switchExpedientesTab(tabName) {
   });
 }
 
+function toggleRoadmapProDrawer(drawerId) {
+  const drawer = document.getElementById(`drawer-pro-${drawerId}`);
+  if (!drawer) return;
+  const isHidden = drawer.style.display === 'none' || !drawer.style.display;
+  drawer.style.display = isHidden ? 'block' : 'none';
+
+  // Toggle icon on the corresponding bar
+  const bar = document.getElementById(`bar-pro-${drawerId}`);
+  if (bar) {
+    const circle = bar.querySelector('.circle-icon');
+    if (circle) {
+      circle.textContent = isHidden ? '−' : '＋';
+    }
+  }
+}
+
+function marcarCitaPro(confirmada, customFecha, customHora) {
+  isCitaConfirmada = typeof confirmada === 'boolean' ? confirmada : true;
+  if (customFecha) citaFecha = customFecha;
+  if (customHora) citaHora = customHora;
+
+  localStorage.setItem('gestarian_cita_confirmada', isCitaConfirmada ? 'true' : 'false');
+  localStorage.setItem('gestarian_cita_fecha', citaFecha);
+  localStorage.setItem('gestarian_cita_hora', citaHora);
+
+  applyBudget419DOMState();
+  if (isCitaConfirmada) {
+    showAppNotice(`✓ Cita confirmada: ${formatearFechaCitaCorta(citaFecha)} a las ${citaHora}h.`);
+  } else {
+    showAppNotice('⏳ Cita marcada como pendiente.');
+  }
+}
+
+function enviarNotificacionCitaWhatsApp() {
+  const fechaTexto = `${formatearFechaCitaCorta(citaFecha)} a las ${citaHora}h`;
+  const mensaje = encodeURIComponent(`Hola Juan Pérez, confirmamos su cita en taller Gestarian para su vehículo MERCEDES-BENZ (2849-LKR) el ${fechaTexto}. Le esperamos.`);
+  window.open(`https://wa.me/?text=${mensaje}`, '_blank');
+  showAppNotice('📲 Recordatorio de cita enviado por WhatsApp.');
+}
+
+function derivarCitaRedEnterprise() {
+  showAppNotice('🌐 Cita derivada automáticamente a la Estación 02 de la Red B2B Gestarian Enterprise.');
+  const subCita = document.getElementById('sub-pro-cita');
+  if (subCita) {
+    subCita.textContent = 'DERIVADA A RED B2B · ESTACIÓN 02';
+  }
+}
+
 function toggleBudgetAcceptedState(accepted) {
   isBudget419Accepted = !!accepted;
   localStorage.setItem('gestarian_budget_419_accepted', isBudget419Accepted ? 'true' : 'false');
+  if (!isBudget419Accepted) {
+    isRepair419Finished = false;
+    localStorage.setItem('gestarian_repair_419_finished', 'false');
+  }
   applyBudget419DOMState();
+}
+
+function toggleRepairFinishedState(forceVal) {
+  if (typeof forceVal === 'boolean') {
+    isRepair419Finished = forceVal;
+  } else {
+    isRepair419Finished = !isRepair419Finished;
+  }
+  localStorage.setItem('gestarian_repair_419_finished', isRepair419Finished ? 'true' : 'false');
+  applyBudget419DOMState();
+  if (isRepair419Finished) {
+    showAppNotice('⚙️ Taller finalizado · Factura oficial F260042 y Control de Cobro desbloqueados.');
+  }
+}
+
+function toggleControlCalidadRoadmap() {
+  isCalidadRoadmapActive = !isCalidadRoadmapActive;
+  localStorage.setItem('gestarian_calidad_active', isCalidadRoadmapActive ? 'true' : 'false');
+  applyBudget419DOMState();
+  if (isCalidadRoadmapActive) {
+    showAppNotice('✓ Fase de Control de Calidad activada en el Roadmap.');
+  } else {
+    showAppNotice('ℹ️ Control de Calidad desactivado (Opcional).');
+  }
+}
+
+function handleRoadmapImageUpload(event, phase) {
+  const files = event.target.files;
+  if (!files || !files.length) return;
+  const container = document.getElementById(`roadmap-images-${phase}`);
+  if (!container) return;
+
+  Array.from(files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = document.createElement('img');
+      img.src = e.target.result;
+      img.alt = `Foto ${phase}`;
+      img.className = 'roadmap-img-thumb';
+      img.title = file.name;
+      container.appendChild(img);
+    };
+    reader.readAsDataURL(file);
+  });
+  showAppNotice(`📷 Imagen adjuntada con éxito a ${phase}.`);
 }
 
 function applyBudget419DOMState() {
   const isAcc = isBudget419Accepted;
-  const nowStr = new Date().toLocaleDateString('es-ES') + ' ' + new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  const isRepFin = isRepair419Finished && isAcc;
+  const totalFactura = 459.80;
+  const pendiente = Math.max(0, totalFactura - roadmapCobradoAmount);
+  const isTotalCobrado = pendiente === 0;
 
-  // 1. Roadmap header badge
-  const roadmapBadge = document.getElementById('roadmap-status-badge');
-  if (roadmapBadge) {
-    roadmapBadge.className = 'step-badge ' + (isAcc ? 'step-badge-green' : 'step-badge-amber');
-    roadmapBadge.textContent = isAcc ? '✓ PRESUPUESTO ACEPTADO POR EL CLIENTE' : '⏳ PENDIENTE DE APROBACIÓN POR EL CLIENTE';
-  }
+  // 1. BARRA 1: RECEPCIÓN
+  const barRecepcion = document.getElementById('bar-pro-recepcion');
+  const subRecepcion = document.getElementById('sub-pro-recepcion');
+  if (barRecepcion) barRecepcion.className = 'roadmap-pro-bar bar-green';
+  if (subRecepcion) subRecepcion.textContent = 'RECEPCIÓN REGISTRADA';
 
-  // 2. Roadmap Step 3 (Acceptance phase)
-  const stepAccept = document.getElementById('roadmap-step-acceptance');
-  const step3Icon = document.getElementById('step-3-icon');
-  const step3Badge = document.getElementById('step-3-badge');
-  const step3Desc = document.getElementById('step-3-desc');
-  const step3Log = document.getElementById('step-3-log');
-
-  if (stepAccept) {
-    stepAccept.className = 'roadmap-step-item ' + (isAcc ? 'step-accepted-live' : 'step-pending-approval');
+  // 2. BARRA 2: PRESUPUESTO
+  const barPresupuesto = document.getElementById('bar-pro-presupuesto');
+  const subPresupuesto = document.getElementById('sub-pro-presupuesto');
+  const metaPresupuesto = document.getElementById('presupuesto-meta-estado');
+  if (barPresupuesto) {
+    barPresupuesto.className = 'roadmap-pro-bar ' + (isAcc ? 'bar-orange' : 'bar-gray');
   }
-  if (step3Icon) {
-    step3Icon.textContent = isAcc ? '✓' : '⏳';
+  if (subPresupuesto) {
+    subPresupuesto.textContent = isAcc ? 'PRESUPUESTO ACEPTADO · 459,80 €' : 'PRESUPUESTO BORRADOR · PENDIENTE';
   }
-  if (step3Badge) {
-    step3Badge.className = 'step-badge ' + (isAcc ? 'step-badge-green' : 'step-badge-amber');
-    step3Badge.textContent = isAcc ? '✓ Aceptado en Área de Clientes' : '⏳ Pendiente en Área de Clientes';
-  }
-  if (step3Desc) {
-    step3Desc.textContent = isAcc
-      ? 'El cliente ha revisado las partidas y ha aceptado el presupuesto #PRE-2026-419 desde su Área de Clientes con firma y conformidad digital.'
-      : 'Presupuesto #PRE-2026-419 remitido al cliente por email y WhatsApp. En espera de aceptación y firma digital desde el Área de Clientes.';
-  }
-  if (step3Log) {
-    step3Log.innerHTML = isAcc
-      ? `<span>🟢</span> <strong>${nowStr}</strong> · Aceptado por Juan Pérez Gómez (DNI: 48.912.431-K) mediante invitación segura.`
-      : `<span>⏳</span> <strong>Notificación emitida</strong> · Pendiente de respuesta y firma del cliente en su enlace exclusivo.`;
+  if (metaPresupuesto) {
+    metaPresupuesto.innerHTML = isAcc
+      ? `Estado: <strong style="color:#86efac">Aceptado</strong>`
+      : `Estado: <strong style="color:#fde68a">Borrador</strong>`;
   }
 
-  // 3. Roadmap Step 4 (Execution phase)
-  const stepExec = document.getElementById('roadmap-step-execution');
-  const step4Icon = document.getElementById('step-4-icon');
-  const step4Badge = document.getElementById('step-4-badge');
-  const step4Desc = document.getElementById('step-4-desc');
+  // 3. BARRA 3: CITA
+  const barCita = document.getElementById('bar-pro-cita');
+  const subCita = document.getElementById('sub-pro-cita');
+  const pillCitaFecha = document.getElementById('cita-pill-fecha');
+  const pillCitaHora = document.getElementById('cita-pill-hora');
+  const pillCitaEstado = document.getElementById('cita-pill-estado');
+  if (barCita) {
+    barCita.className = 'roadmap-pro-bar ' + (isCitaConfirmada ? 'bar-blue' : 'bar-gray');
+  }
+  if (subCita) {
+    subCita.textContent = isCitaConfirmada
+      ? `CITA CONFIRMADA · ${formatearFechaCitaCorta(citaFecha)} ${citaHora}H`
+      : 'PENDIENTE DE CITA';
+  }
+  if (pillCitaFecha) pillCitaFecha.textContent = citaFecha;
+  if (pillCitaHora) pillCitaHora.textContent = `${citaHora}h`;
+  if (pillCitaEstado) {
+    pillCitaEstado.innerHTML = isCitaConfirmada
+      ? `Estado: <strong style="color:#86efac">Confirmada</strong>`
+      : `Estado: <strong style="color:#fde68a">Pendiente</strong>`;
+  }
 
-  if (stepExec) {
-    stepExec.className = 'roadmap-step-item ' + (isAcc ? 'step-active-now' : '');
+  // 4. BARRA 4: TALLER
+  const barTaller = document.getElementById('bar-pro-taller');
+  const subTaller = document.getElementById('sub-pro-taller');
+  const metaTaller = document.getElementById('taller-meta-estado');
+  const btnToggleFinTaller = document.getElementById('btn-toggle-fin-taller');
+  if (barTaller) {
+    if (isRepFin) {
+      barTaller.className = 'roadmap-pro-bar bar-green';
+    } else if (isAcc) {
+      barTaller.className = 'roadmap-pro-bar bar-purple';
+    } else {
+      barTaller.className = 'roadmap-pro-bar bar-gray';
+    }
   }
-  if (step4Icon) {
-    step4Icon.textContent = isAcc ? '⚙️' : '4';
+  if (subTaller) {
+    if (isRepFin) {
+      subTaller.textContent = 'TALLER FINALIZADO · FACTURACIÓN ACTIVA';
+    } else if (isAcc) {
+      subTaller.textContent = 'EN CURSO · REPARACIÓN';
+    } else {
+      subTaller.textContent = 'PENDIENTE INICIO TALLER';
+    }
   }
-  if (step4Badge) {
-    step4Badge.className = 'step-badge ' + (isAcc ? 'step-badge-purple' : 'step-badge-gray');
-    step4Badge.textContent = isAcc ? 'En Curso / Activa' : 'En Espera de Aceptación';
+  if (metaTaller) {
+    metaTaller.innerHTML = isRepFin
+      ? `Estado: <strong style="color:#86efac">Finalizado</strong>`
+      : (isAcc ? `Estado: <strong style="color:#c084fc">En Curso</strong>` : `Estado: <strong>En Espera</strong>`);
   }
-  if (step4Desc) {
-    step4Desc.textContent = isAcc
-      ? 'Mecánico asignado. Módulo de evolución visual activo: se están registrando fotos y notas del proceso en tiempo real para el cliente.'
-      : 'En pausa hasta que el cliente acepte el presupuesto desde su área privada.';
+  if (btnToggleFinTaller) {
+    btnToggleFinTaller.textContent = isRepFin
+      ? '✓ Taller Finalizado (Pulsar para Reabrir)'
+      : '⚙️ Marcar Finalizado → Desbloquear Facturación';
+    btnToggleFinTaller.style.background = isRepFin
+      ? 'rgba(34,197,94,0.2)'
+      : 'linear-gradient(135deg,#a855f7,#6366f1)';
+    btnToggleFinTaller.style.border = isRepFin ? '1px solid #22c55e' : 'none';
   }
 
-  // 4. Tarjeta del Presupuesto #PRE-2026-419
+  // 5. BARRA 5: CONTROL DE CALIDAD
+  const barCalidad = document.getElementById('bar-pro-calidad');
+  const subCalidad = document.getElementById('sub-pro-calidad');
+  const metaCalidad = document.getElementById('calidad-meta-estado');
+  const btnCalidadAction = document.getElementById('btn-toggle-calidad-action');
+  if (barCalidad) {
+    if (isCalidadRoadmapActive) {
+      barCalidad.className = 'roadmap-pro-bar bar-cyan';
+    } else {
+      barCalidad.className = 'roadmap-pro-bar bar-gray';
+    }
+  }
+  if (subCalidad) {
+    if (isCalidadRoadmapActive) {
+      subCalidad.textContent = isRepFin ? 'CONTROL DE CALIDAD SUPERADO' : 'EN PRUEBAS DE CALIDAD';
+    } else {
+      subCalidad.textContent = 'OPCIONAL · PULSAR PARA ACTIVAR';
+    }
+  }
+  if (metaCalidad) {
+    metaCalidad.innerHTML = isCalidadRoadmapActive
+      ? `Estado: <strong style="color:#38bdf8">${isRepFin ? 'Superado' : 'Activo'}</strong>`
+      : `Estado: <strong>Desactivado</strong>`;
+  }
+  if (btnCalidadAction) {
+    btnCalidadAction.textContent = isCalidadRoadmapActive ? '✓ Fase Calidad Activa (1 Clic Desactivar)' : '⚡ Activar Calidad con 1 Clic';
+    btnCalidadAction.style.background = isCalidadRoadmapActive ? 'rgba(56,189,248,0.25)' : '#0284c7';
+    btnCalidadAction.style.border = isCalidadRoadmapActive ? '1px solid #38bdf8' : 'none';
+  }
+
+  // 6. BARRA 6: FACTURACIÓN
+  const barFacturacion = document.getElementById('bar-pro-facturacion');
+  const subFacturacion = document.getElementById('sub-pro-facturacion');
+  const metaFactura = document.getElementById('factura-meta-estado');
+  const actionFactura = document.getElementById('drawer-action-factura');
+  if (barFacturacion) {
+    barFacturacion.className = 'roadmap-pro-bar ' + (isRepFin ? 'bar-green' : 'bar-gray');
+  }
+  if (subFacturacion) {
+    subFacturacion.textContent = isRepFin
+      ? 'FACTURA F260042 DISPONIBLE'
+      : 'BLOQUEADA (ESPERANDO FIN DE TALLER)';
+  }
+  if (metaFactura) {
+    metaFactura.innerHTML = isRepFin
+      ? `Estado: <strong style="color:#86efac">Emitida</strong>`
+      : `Estado: <strong style="color:#94a3b8">Bloqueada</strong>`;
+  }
+  if (actionFactura) {
+    actionFactura.style.display = isRepFin ? 'block' : 'none';
+  }
+
+  // 7. BARRA 7: CONTROL DE COBRO & RECIBOS
+  const barCobro = document.getElementById('bar-pro-cobro');
+  const subCobro = document.getElementById('sub-pro-cobro');
+  const elCobrado = document.getElementById('roadmap-cobro-cobrado');
+  const elPendiente = document.getElementById('roadmap-cobro-pendiente');
+  const listAbonos = document.getElementById('roadmap-abonos-list');
+  if (barCobro) {
+    if (isRepFin) {
+      if (isTotalCobrado) {
+        barCobro.className = 'roadmap-pro-bar bar-green';
+      } else if (roadmapCobradoAmount > 0) {
+        barCobro.className = 'roadmap-pro-bar bar-amber';
+      } else {
+        barCobro.className = 'roadmap-pro-bar bar-orange';
+      }
+    } else {
+      barCobro.className = 'roadmap-pro-bar bar-gray';
+    }
+  }
+  if (subCobro) {
+    if (isRepFin) {
+      if (isTotalCobrado) {
+        subCobro.textContent = 'TOTALMENTE COBRADO · 459,80 €';
+      } else if (roadmapCobradoAmount > 0) {
+        subCobro.textContent = `COBRADO: ${roadmapCobradoAmount.toFixed(2)} € · PENDIENTE: ${pendiente.toFixed(2)} €`;
+      } else {
+        subCobro.textContent = 'PENDIENTE DE COBRO · 459,80 €';
+      }
+    } else {
+      subCobro.textContent = 'EN ESPERA DE FACTURACIÓN';
+    }
+  }
+  if (elCobrado) elCobrado.textContent = `${roadmapCobradoAmount.toFixed(2)} €`;
+  if (elPendiente) elPendiente.textContent = `${pendiente.toFixed(2)} €`;
+
+  if (listAbonos) {
+    if (roadmapCobroHistorial.length === 0) {
+      listAbonos.innerHTML = `
+        <li class="roadmap-abono-row" style="color:var(--text-muted)">
+          <span>Sin abonos registrados aún. Pulsa en los botones superiores para registrar cobros.</span>
+        </li>
+      `;
+    } else {
+      listAbonos.innerHTML = roadmapCobroHistorial.map((ab) => `
+        <li class="roadmap-abono-row">
+          <span>💶 Recibo #${ab.id} · ${ab.fecha} (${ab.metodo})</span>
+          <strong style="color:#4ade80">+${ab.importe.toFixed(2)} €</strong>
+        </li>
+      `).join('');
+    }
+  }
+
+  // 8. Tarjeta del Presupuesto #PRE-2026-419 (Tab 2)
   const budgetCard419 = document.getElementById('budget-card-419');
   const budgetBadge419 = document.getElementById('budget-badge-status-419');
   const budgetAudit419 = document.getElementById('budget-audit-text-419');
+  const nowStr = new Date().toLocaleDateString('es-ES') + ' ' + new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
   if (budgetCard419) {
     budgetCard419.classList.toggle('budget-accepted', isAcc);
@@ -474,17 +764,448 @@ function applyBudget419DOMState() {
   }
   if (budgetAudit419) {
     budgetAudit419.innerHTML = isAcc
-      ? `✓ <strong>Presupuesto aceptado digitalmente</strong> por el cliente el <span>${nowStr}</span>. Expediente EXP-2026-0842 en fase de reparación.`
-      : `⏳ <strong>Presupuesto emitido y notificado</strong>. En espera de aceptación del cliente desde el Área de Clientes.`;
-  }
-
-  // 5. Simulador Área de Clientes
-  const simClientBadge = document.getElementById('sim-client-badge');
-  if (simClientBadge) {
-    simClientBadge.className = 'step-badge ' + (isAcc ? 'step-badge-green' : 'step-badge-amber');
-    simClientBadge.textContent = isAcc ? 'ACEPTADO' : 'PENDIENTE DE FIRMA';
+      ? `✓ <strong>Presupuesto aceptado digitalmente</strong> el <span>${nowStr}</span>. (Factura disponible al finalizar taller).`
+      : `⏳ <strong>Presupuesto emitido</strong>. En espera de aceptación del cliente.`;
   }
 }
+
+function registrarAbonoRoadmap(importe) {
+  const numImp = parseFloat(importe) || 0;
+  const nuevoCobrado = Math.min(459.80, roadmapCobradoAmount + numImp);
+  const realSumado = nuevoCobrado - roadmapCobradoAmount;
+  if (realSumado <= 0) {
+    showAppNotice('ℹ️ La factura ya está totalmente liquidada.');
+    return;
+  }
+  roadmapCobradoAmount = nuevoCobrado;
+  localStorage.setItem('gestarian_cobrado_amount', roadmapCobradoAmount.toString());
+
+  const nuevoAbono = {
+    id: `R26-${String(roadmapCobroHistorial.length + 1).padStart(3, '0')}`,
+    fecha: new Date().toLocaleDateString('es-ES'),
+    importe: realSumado,
+    metodo: 'Tarjeta / TPV Taller'
+  };
+  roadmapCobroHistorial.push(nuevoAbono);
+  localStorage.setItem('gestarian_cobro_historial', JSON.stringify(roadmapCobroHistorial));
+
+  applyBudget419DOMState();
+  showAppNotice(`💶 Abono de ${realSumado.toFixed(2)} € registrado con éxito. Recibo #${nuevoAbono.id} generado.`);
+}
+
+function abrirReciboDesdeRoadmap() {
+  const total = 459.80;
+  const cobrado = roadmapCobradoAmount > 0 ? roadmapCobradoAmount : 200.00;
+  const pendiente = Math.max(0, total - cobrado);
+
+  const reciboDoc = {
+    tipo: 'RECIBO',
+    id: `R26-00${Math.max(1, roadmapCobroHistorial.length)}`,
+    fecha: new Date().toISOString().split('T')[0],
+    fechaPropuestaEntrega: '2026-10-12',
+    expedienteId: 'EXP-2026-0842',
+    estado: pendiente === 0 ? 'COBRADA_TOTAL' : 'ABONO_PARCIAL',
+    emisor: {
+      nombre: 'DM CAR TALLER MECÁNICO S.L.',
+      cif: 'B12345678',
+      direccion: 'Calle Metalurgia 18, 28830 Madrid',
+      telefono: '+34 912 345 678',
+      email: 'cobros@dmcar-taller.es'
+    },
+    cliente: {
+      razonSocial: 'Juan Pérez Gómez',
+      cifNif: '48.912.431-K',
+      direccion: 'Av. América 45, 3ºB, Madrid',
+      telefono: '+34 600 123 456',
+      email: 'juan.perez@email.com'
+    },
+    vehiculo: {
+      marcaModelo: 'Mercedes-Benz A200d (W177)',
+      matricula: '2849-LKR'
+    },
+    lineas: [
+      { concepto: 'Abono / Pago de liquidación factura F260042', cantidad: 1, precioUnitario: cobrado, total: cobrado }
+    ],
+    totales: {
+      baseImponible: Number((cobrado / 1.21).toFixed(2)),
+      tipoIva: 21,
+      cuotaIva: Number((cobrado - cobrado / 1.21).toFixed(2)),
+      total: cobrado,
+      cobrado: cobrado,
+      pendiente: pendiente
+    },
+    metodoPago: 'TPV / Tarjeta Bancaria',
+    observaciones: `Recibo de abono expedido por DM CAR TALLER MECÁNICO S.L. Saldo pendiente del expediente: ${pendiente.toFixed(2)} €.`
+  };
+
+  DOCUMENTOS_MINIMALISTAS_DB[reciboDoc.id] = reciboDoc;
+  openMinimalistDocModal('RECIBO', reciboDoc.id);
+}
+
+function enviarRecordatorioPagoRoadmap() {
+  const pendiente = Math.max(0, 459.80 - roadmapCobradoAmount);
+  if (pendiente <= 0) {
+    showAppNotice('✓ La factura está totalmente pagada. No existen deudas pendientes.');
+    return;
+  }
+  const text = encodeURIComponent(`Hola Juan Pérez Gómez, le recordamos que dispone de un saldo pendiente de ${pendiente.toFixed(2)} € correspondiente a la factura F260042 (Mercedes-Benz 2849-LKR). Puede abonarlo en recepción o mediante enlace seguro.`);
+  window.open(`https://wa.me/?text=${text}`, '_blank');
+  showAppNotice('📲 Recordatorio de pago transmitido por WhatsApp.');
+}
+
+/* =========================================================
+   VISOR DOCUMENTAL MINIMALISTA (ESTILO GESTARIAN QUICK)
+   Facturas, Presupuestos, Recibos, Órdenes de Trabajo, Solicitudes
+   ========================================================= */
+const DOCUMENTOS_MINIMALISTAS_DB = {
+  'PRE-2026-419': {
+    tipo: 'PRESUPUESTO',
+    id: 'P260082',
+    altId: 'PRE-2026-419',
+    fecha: '2026-10-07',
+    fechaPropuestaEntrega: '2026-10-12',
+    expedienteId: 'EXP-2026-0842',
+    solicitudId: 'SOL-2026-001',
+    estado: 'ACEPTADO POR EL CLIENTE',
+    emisor: {
+      nombre: 'DM CAR TALLER MECÁNICO S.L.',
+      cif: 'B12345678',
+      direccion: 'Calle Metalurgia 18, 28830 Madrid',
+      telefono: '+34 912 345 678',
+      email: 'contacto@dmcar-taller.es'
+    },
+    cliente: {
+      razonSocial: 'Juan Pérez Gómez',
+      cifNif: '48.912.431-K',
+      direccion: 'Av. América 45, 3ºB, Madrid',
+      telefono: '+34 600 123 456',
+      email: 'juan.perez@email.com'
+    },
+    vehiculo: {
+      marcaModelo: 'Mercedes-Benz A200d (W177)',
+      matricula: '2849-LKR',
+      km: '84.210'
+    },
+    lineas: [
+      { concepto: 'Mano de obra especializada (Diagnosis y Sustitución de piezas)', cantidad: 3.5, precioUnitario: 51.43, total: 180.00 },
+      { concepto: 'Kit de distribución original reforzado con tensor hidráulico', cantidad: 1, precioUnitario: 145.00, total: 145.00 },
+      { concepto: 'Bomba de agua de refrigeración y junta estanca', cantidad: 1, precioUnitario: 55.00, total: 55.00 },
+      { concepto: 'Inspección técnica visual, diagnosis OCR y verificación IA', cantidad: 1, precioUnitario: 0.00, total: 0.00 }
+    ],
+    totales: {
+      baseImponible: 380.00,
+      tipoIva: 21,
+      cuotaIva: 79.80,
+      total: 459.80
+    },
+    observaciones: 'Presupuesto validado digitalmente. La factura final oficial se genera únicamente al finalizar la reparación en el Roadmap.'
+  },
+  'F260042': {
+    tipo: 'FACTURA',
+    id: 'F260042',
+    fecha: '2026-10-08',
+    fechaPropuestaEntrega: '2026-10-12',
+    expedienteId: 'EXP-2026-0842',
+    solicitudId: 'SOL-2026-001',
+    estado: 'EMITIDA (FIN DE REPARACIÓN)',
+    emisor: {
+      nombre: 'DM CAR TALLER MECÁNICO S.L.',
+      cif: 'B12345678',
+      direccion: 'Calle Metalurgia 18, 28830 Madrid',
+      telefono: '+34 912 345 678',
+      email: 'facturacion@dmcar-taller.es'
+    },
+    cliente: {
+      razonSocial: 'Juan Pérez Gómez',
+      cifNif: '48.912.431-K',
+      direccion: 'Av. América 45, 3ºB, Madrid',
+      telefono: '+34 600 123 456',
+      email: 'juan.perez@email.com'
+    },
+    vehiculo: {
+      marcaModelo: 'Mercedes-Benz A200d (W177)',
+      matricula: '2849-LKR',
+      km: '84.215'
+    },
+    lineas: [
+      { concepto: 'Mano de obra certificada según orden de taller finalizada', cantidad: 3.5, precioUnitario: 51.43, total: 180.00 },
+      { concepto: 'Kit de distribución original Mercedes-Benz', cantidad: 1, precioUnitario: 145.00, total: 145.00 },
+      { concepto: 'Bomba de agua + Líquido refrigerante G12', cantidad: 1, precioUnitario: 55.00, total: 55.00 }
+    ],
+    totales: {
+      baseImponible: 380.00,
+      tipoIva: 21,
+      cuotaIva: 79.80,
+      total: 459.80,
+      cobrado: 0.00,
+      pendiente: 459.80
+    },
+    observaciones: 'Factura Ordinaria generada automáticamente al finalizar la parada de taller en el Roadmap del expediente EXP-2026-0842.'
+  }
+};
+
+function openMinimalistDocModal(tipo, docKey) {
+  const doc = DOCUMENTOS_MINIMALISTAS_DB[docKey] || {
+    tipo: tipo || 'FACTURA',
+    id: docKey || 'DOC-2026-001',
+    fecha: new Date().toISOString().split('T')[0],
+    fechaPropuestaEntrega: '2026-10-15',
+    expedienteId: 'EXP-2026-0842',
+    estado: 'DOCUMENTO OFICIAL',
+    emisor: {
+      nombre: 'DM CAR TALLER MECÁNICO S.L.',
+      cif: 'B12345678',
+      direccion: 'Calle Metalurgia 18, 28830 Madrid',
+      telefono: '+34 912 345 678',
+      email: 'contacto@dmcar-taller.es'
+    },
+    cliente: {
+      razonSocial: 'Cliente Gestarian',
+      cifNif: '12345678Z',
+      email: 'cliente@gestarian.com'
+    },
+    vehiculo: {
+      marcaModelo: 'Mercedes-Benz A200d',
+      matricula: '2849-LKR'
+    },
+    lineas: [
+      { concepto: 'Trabajos técnicos y mantenimiento general', cantidad: 1, precioUnitario: 380.00, total: 380.00 }
+    ],
+    totales: {
+      baseImponible: 380.00,
+      tipoIva: 21,
+      cuotaIva: 79.80,
+      total: 459.80
+    }
+  };
+
+  activeMinimalistDoc = doc;
+
+  const container = document.getElementById('doc-minimalista-wrapper');
+  const content = document.getElementById('doc-minimalista-content');
+  if (!content || !container) return;
+
+  const isCompleted = doc.estado.includes('ACEPTADO') || doc.estado.includes('FINALIZ') || doc.estado.includes('COBRAD');
+  const isProgress = doc.estado.includes('CURSO') || doc.estado.includes('EMITIDA');
+  
+  container.className = 'modal-container doc-minimalista-container ' + (isCompleted ? 'border-status-completed' : (isProgress ? 'border-status-progress' : 'border-status-pending'));
+
+  content.innerHTML = `
+    <!-- Cabecera Minimalista Superior -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:1.2rem;margin-bottom:1.4rem;gap:1rem;flex-wrap:wrap">
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+          <span style="font-size:0.75rem;padding:3px 10px;border-radius:999px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;background:${isCompleted ? 'rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.3)' : 'rgba(56,189,248,0.15);color:#7dd3fc;border:1px solid rgba(56,189,248,0.3)'}">
+            ${doc.tipo} · ${doc.estado}
+          </span>
+          ${doc.expedienteId ? `<span style="font-size:0.75rem;font-family:monospace;padding:2px 8px;border-radius:6px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#cbd5e1">📁 ${doc.expedienteId}</span>` : ''}
+        </div>
+        <h2 style="font-size:1.6rem;font-weight:800;font-family:'Outfit',sans-serif;color:#fff;margin:0 0 4px 0">
+          ${doc.tipo === 'FACTURA' ? 'Factura Oficial Ordinaria' : (doc.tipo === 'PRESUPUESTO' ? 'Presupuesto Técnico Detallado' : 'Documento Oficial Gestarian')}
+        </h2>
+        <div style="font-family:monospace;font-size:1rem;font-weight:700;color:#e2e8f0">
+          Ref: <span style="color:var(--c-gold)">${doc.id}</span> ${doc.altId ? `<span style="color:rgba(255,255,255,0.4)">(${doc.altId})</span>` : ''}
+        </div>
+      </div>
+
+      <div style="text-align:right;font-size:0.82rem">
+        <div style="color:var(--text-muted)">Fecha de Emisión:</div>
+        <div style="font-family:monospace;font-weight:700;color:#fff;margin-bottom:4px">${doc.fecha}</div>
+        ${doc.fechaPropuestaEntrega ? `
+          <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:4px">
+            <div style="color:#f5c451;font-size:0.75rem;font-weight:600">Fecha Propuesta Entrega:</div>
+            <div style="font-family:monospace;font-weight:700;color:#ffdf8a">${doc.fechaPropuestaEntrega}</div>
+          </div>
+        ` : ''}
+      </div>
+    </div>
+
+    <!-- Empresa Emisora & Cliente -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;margin-bottom:1.2rem;font-size:0.82rem">
+      <div style="background:rgba(255,255,255,0.02);padding:0.9rem 1.1rem;border-radius:12px;border:1px solid rgba(255,255,255,0.06)">
+        <span style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.06em;color:rgba(255,255,255,0.4);font-weight:700;display:block;margin-bottom:4px">Emisor / Taller</span>
+        <div style="font-weight:700;color:#fff;font-size:0.95rem">${doc.emisor.nombre}</div>
+        <div style="font-family:monospace;color:var(--text-muted)">CIF: ${doc.emisor.cif}</div>
+        <div style="color:var(--text-muted)">${doc.emisor.direccion}</div>
+        <div style="color:rgba(255,255,255,0.5)">${doc.emisor.telefono} · ${doc.emisor.email}</div>
+      </div>
+
+      <div style="background:rgba(255,255,255,0.02);padding:0.9rem 1.1rem;border-radius:12px;border:1px solid rgba(255,255,255,0.06)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.06em;color:rgba(255,255,255,0.4);font-weight:700">Cliente / Titular</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            ${doc.cliente.telefono ? `
+              <a href="tel:${doc.cliente.telefono}" title="Llamar a ${doc.cliente.telefono}" style="color:rgba(255,255,255,0.4);text-decoration:none;display:inline-flex;align-items:center" onmouseover="this.style.color='#34d399'" onmouseout="this.style.color='rgba(255,255,255,0.4)'">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+              </a>
+              <a href="https://wa.me/${doc.cliente.telefono.replace(/[^0-9]/g, '')}" target="_blank" rel="noopener" title="Enviar WhatsApp" style="color:rgba(255,255,255,0.4);text-decoration:none;display:inline-flex;align-items:center" onmouseover="this.style.color='#34d399'" onmouseout="this.style.color='rgba(255,255,255,0.4)'">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+              </a>
+            ` : ''}
+            ${doc.cliente.email ? `
+              <a href="mailto:${doc.cliente.email}" title="Enviar email" style="color:rgba(255,255,255,0.4);text-decoration:none;display:inline-flex;align-items:center" onmouseover="this.style.color='#38bdf8'" onmouseout="this.style.color='rgba(255,255,255,0.4)'">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+              </a>
+            ` : ''}
+            <!-- Botón flotante eliminar cliente: cubo de basura, sin relleno, sin envoltorio -->
+            <button type="button" onclick="eliminarClienteDeDocumento('${doc.id}', '${doc.cliente.razonSocial}')" title="Eliminar cliente" aria-label="Eliminar cliente" style="background:none;border:none;padding:0;margin:0;color:rgba(255,255,255,0.4);cursor:pointer;display:inline-flex;align-items:center;transition:color 0.15s ease" onmouseover="this.style.color='#fb7185'" onmouseout="this.style.color='rgba(255,255,255,0.4)'">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div id="doc-modal-cliente-name" style="font-weight:700;color:#fff;font-size:0.95rem">${doc.cliente.razonSocial}</div>
+        <div id="doc-modal-cliente-nif" style="font-family:monospace;color:var(--text-muted)">NIF/CIF: ${doc.cliente.cifNif}</div>
+        ${doc.cliente.direccion ? `<div style="color:var(--text-muted)">${doc.cliente.direccion}</div>` : ''}
+        <div style="color:rgba(255,255,255,0.5)">${doc.cliente.telefono || ''} · ${doc.cliente.email || ''}</div>
+      </div>
+    </div>
+
+    <!-- Ficha del Vehículo & Fecha de Entrega -->
+    ${doc.vehiculo ? `
+      <div style="background:linear-gradient(135deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01));padding:0.8rem 1.1rem;border-radius:12px;border:1px solid rgba(255,255,255,0.08);margin-bottom:1.2rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.8rem;font-size:0.82rem">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,0.06);display:grid;place-items:center;font-size:1.1rem">🚗</div>
+          <div>
+            <span style="font-size:0.68rem;text-transform:uppercase;color:rgba(255,255,255,0.4);font-weight:700;display:block">Vehículo Vinculado</span>
+            <strong style="color:#fff;font-size:0.92rem">${doc.vehiculo.marcaModelo}</strong>
+            ${doc.vehiculo.km ? `<span style="color:var(--text-muted);font-size:0.78rem"> (${doc.vehiculo.km} km)</span>` : ''}
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px;font-family:monospace">
+          <div>
+            <span style="font-size:0.68rem;color:rgba(255,255,255,0.4);display:block">Matrícula:</span>
+            <span style="background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.15);padding:2px 8px;border-radius:6px;font-weight:700;letter-spacing:0.08em;color:#fff">${doc.vehiculo.matricula}</span>
+          </div>
+          ${doc.fechaPropuestaEntrega ? `
+            <div>
+              <span style="font-size:0.68rem;color:#f5c451;display:block">Entrega Propuesta:</span>
+              <strong style="color:#ffdf8a">${doc.fechaPropuestaEntrega}</strong>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    ` : ''}
+
+    <!-- Tabla Minimalista de Partidas -->
+    <div style="border:1px solid rgba(255,255,255,0.08);border-radius:12px;overflow:hidden;margin-bottom:1.2rem">
+      <table style="width:100%;border-collapse:collapse;font-size:0.82rem;text-align:left">
+        <thead>
+          <tr style="background:rgba(255,255,255,0.03);border-bottom:1px solid rgba(255,255,255,0.08);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.04em;color:rgba(255,255,255,0.4)">
+            <th style="padding:0.7rem 0.9rem">Descripción / Partida</th>
+            <th style="padding:0.7rem 0.9rem;text-align:center">Uds / Horas</th>
+            <th style="padding:0.7rem 0.9rem;text-align:right">Precio Unitario</th>
+            <th style="padding:0.7rem 0.9rem;text-align:right">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${doc.lineas.map(l => `
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
+              <td style="padding:0.7rem 0.9rem;color:#f1f5f9;font-weight:500">${l.concepto}</td>
+              <td style="padding:0.7rem 0.9rem;text-align:center;font-family:monospace;color:var(--text-muted)">${l.cantidad}</td>
+              <td style="padding:0.7rem 0.9rem;text-align:right;font-family:monospace;color:var(--text-muted)">${l.precioUnitario.toFixed(2)} €</td>
+              <td style="padding:0.7rem 0.9rem;text-align:right;font-family:monospace;font-weight:700;color:#fff">${l.total.toFixed(2)} €</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Totales y Resumen -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem;font-size:0.82rem;padding-top:0.6rem">
+      <div style="max-width:360px;color:var(--text-muted);font-size:0.78rem">
+        ${doc.tipo === 'PRESUPUESTO' ? `
+          <div style="background:rgba(245,196,81,0.1);border:1px solid rgba(245,196,81,0.25);border-radius:8px;padding:0.6rem 0.8rem;color:#ffe7a3;margin-bottom:6px">
+            ⚠️ <strong>Facturación reglada:</strong> La factura final no se genera directamente desde este presupuesto. Se activará en el Roadmap al marcar la reparación en taller como finalizada.
+          </div>
+        ` : ''}
+        <p style="margin:0">Documento confeccionado y registrado mediante la plataforma GESTARIAN.</p>
+      </div>
+
+      <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:0.8rem 1.2rem;min-width:240px;font-family:monospace">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;color:var(--text-muted)">
+          <span>Base Imponible:</span>
+          <span>${doc.totales.baseImponible.toFixed(2)} €</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;color:var(--text-muted)">
+          <span>IVA (${doc.totales.tipoIva}%):</span>
+          <span>${doc.totales.cuotaIva.toFixed(2)} €</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;border-top:1px solid rgba(255,255,255,0.1);padding-top:6px;font-size:1.1rem;font-weight:800;color:var(--c-gold)">
+          <span style="font-family:'Outfit',sans-serif">Total:</span>
+          <span>${doc.totales.total.toFixed(2)} €</span>
+        </div>
+      </div>
+    </div>
+  `;
+
+  openModal('modal-doc-minimalista');
+}
+
+function shareDocViaWhatsApp() {
+  if (!activeMinimalistDoc) return;
+  const doc = activeMinimalistDoc;
+  const text = encodeURIComponent(`Hola ${doc.cliente.razonSocial}, le compartimos el documento oficial ${doc.id} (${doc.tipo}) por importe de ${doc.totales.total.toFixed(2)} €. Taller DM CAR.`);
+  window.open(`https://wa.me/?text=${text}`, '_blank');
+}
+
+function shareDocViaEmail() {
+  if (!activeMinimalistDoc) return;
+  const doc = activeMinimalistDoc;
+  const subject = encodeURIComponent(`${doc.tipo} ${doc.id} · DM CAR TALLER MECÁNICO`);
+  const body = encodeURIComponent(`Estimado/a ${doc.cliente.razonSocial}:\n\nAdjuntamos los datos de su documento ${doc.id} por importe de ${doc.totales.total.toFixed(2)} €.\n\nAtentamente,\nDM CAR TALLER MECÁNICO.`);
+  window.location.href = `mailto:${doc.cliente.email || ''}?subject=${subject}&body=${body}`;
+}
+
+function downloadDocData() {
+  if (!activeMinimalistDoc) return;
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(activeMinimalistDoc, null, 2));
+  const dlAnchor = document.createElement('a');
+  dlAnchor.setAttribute("href", dataStr);
+  dlAnchor.setAttribute("download", `${activeMinimalistDoc.id}_minimalista.json`);
+  dlAnchor.click();
+}
+
+function eliminarClienteDeDocumento(docId, clienteNombre) {
+  const nameEl = document.getElementById('doc-modal-cliente-name');
+  const nifEl = document.getElementById('doc-modal-cliente-nif');
+  if (nameEl) {
+    nameEl.innerHTML = `<span style="color:#fb7185;font-style:italic">🗑️ Cliente desvinculado / eliminado</span>`;
+  }
+  if (nifEl) {
+    nifEl.innerHTML = `<span style="color:rgba(255,255,255,0.4);font-size:0.75rem">Ficha de cliente eliminada del documento</span>`;
+  }
+  showAppNotice(`🗑️ Cliente ${clienteNombre || ''} eliminado de la tarjeta del documento ${docId}.`);
+}
+
+function eliminarClienteRoadmapPro(clienteNombre) {
+  const el = document.getElementById('datos-drawer-cliente-nombre');
+  if (el) {
+    el.innerHTML = `<span style="color:#e11d48;font-style:italic">Cliente eliminado</span>`;
+  }
+  showAppNotice(`🗑️ Cliente ${clienteNombre || ''} eliminado de la tarjeta del expediente.`);
+}
+
+function eliminarClientePresupuestoPro(presId, clienteNombre) {
+  const el = document.getElementById(`budget-cliente-nombre-${presId}`);
+  if (el) {
+    el.innerHTML = `<span style="color:#fb7185;font-style:italic">Cliente eliminado</span>`;
+  }
+  showAppNotice(`🗑️ Cliente ${clienteNombre || ''} eliminado de la tarjeta de presupuesto.`);
+}
+
+window.eliminarClienteDeDocumento = eliminarClienteDeDocumento;
+window.eliminarClienteRoadmapPro = eliminarClienteRoadmapPro;
+window.eliminarClientePresupuestoPro = eliminarClientePresupuestoPro;
+window.openMinimalistDocModal = openMinimalistDocModal;
+window.toggleRepairFinishedState = toggleRepairFinishedState;
+window.shareDocViaWhatsApp = shareDocViaWhatsApp;
+window.shareDocViaEmail = shareDocViaEmail;
+window.downloadDocData = downloadDocData;
 
 // Inicializar estado al cargar
 document.addEventListener('DOMContentLoaded', () => {
@@ -717,29 +1438,140 @@ async function handleRegisterSubmit(e) {
   }
 }
 
-// Login
+// Login con soporte para Taller (Email + Contraseña) y Clientes (Email + DNI/CIF)
 async function handleLoginSubmit(e) {
   e.preventDefault();
   hideAlerts();
 
   const submitBtn = document.getElementById('btn-submit-login');
-  const email = document.getElementById('login-email').value.trim();
-  const password = document.getElementById('login-password').value;
+  const emailInput = document.getElementById('login-email');
+  const passwordInput = document.getElementById('login-password');
+  const clientModeToggle = document.getElementById('login-is-cliente');
 
-  if (!email || !password) {
-    showError('Por favor, ingresa tu email y contraseña.');
+  const email = (emailInput ? emailInput.value : '').trim().toLowerCase();
+  const passwordOrDni = (passwordInput ? passwordInput.value : '').trim();
+
+  if (!email || !passwordOrDni) {
+    showError('Por favor, ingresa tu email y contraseña o DNI/CIF.');
     return;
   }
 
-  setBtnText(submitBtn, 'Iniciando sesión...', true);
+  setBtnText(submitBtn, 'Verificando acceso...', true);
+
+  // Registro de clientes reconocidos por defecto en la base de datos de Gestarian
+  const CLIENTES_REGISTRADOS = [
+    { email: 'facturacion@soluciones-tec.com', dni: 'A87654321', nombre: 'Soluciones Tecnológicas S.A.', plan: 'PRO' },
+    { email: 'logistica@transgomez.es', dni: 'B11223344', nombre: 'Transportes Marítimos Gómez S.L.', plan: 'PRO' },
+    { email: 'admon@talleresiberica.es', dni: 'B98765432', nombre: 'Talleres y Logística Ibérica S.L.', plan: 'PRO' },
+    { email: 'facturas@suministrosur.es', dni: 'A41223344', nombre: 'Suministros Industriales del Sur S.A.', plan: 'PRO' },
+    { email: 'cliente@gestarian.com', dni: '12345678Z', nombre: 'Cliente Particular DM Car', plan: 'PRO' }
+  ];
+
+  const normDni = passwordOrDni.replace(/[\s\-_.]/g, '').toUpperCase();
+  const isClientMode = clientModeToggle ? clientModeToggle.checked : false;
+
+  // Comprobar si coincide con un cliente registrado por su email y DNI/CIF
+  const clienteMatch = CLIENTES_REGISTRADOS.find(c => 
+    c.email.toLowerCase() === email && 
+    (c.dni.toUpperCase() === normDni || c.dni.replace(/[\s\-_.]/g, '').toUpperCase() === normDni)
+  );
+
+  // Detección heurística de DNI/CIF español (8 números + 1 letra, o letra + 7/8 dígitos)
+  const looksLikeDni = /^[A-Z0-9]{8,10}$/.test(normDni) || normDni.length >= 8;
 
   try {
-    const loggedInUser = { email, plan: selectedPlan };
+    let loggedInUser = null;
+
+    // A) Flujo de acceso como CLIENTE con Email y DNI/CIF (o detección automática si coincide)
+    if (isClientMode || clienteMatch || (looksLikeDni && !isClientMode)) {
+      let clientData = clienteMatch;
+
+      // Buscar en Supabase tabla clientes si no está en la lista estática
+      if (!clientData && supabaseClient) {
+        try {
+          const { data: dbClientes } = await supabaseClient
+            .from('clientes')
+            .select('*')
+            .ilike('email', email);
+          
+          if (dbClientes && dbClientes.length > 0) {
+            const found = dbClientes.find(c => {
+              const cDni = (c.dni || '').replace(/[\s\-_.]/g, '').toUpperCase();
+              return cDni === normDni || (c.password && c.password === passwordOrDni);
+            });
+            if (found) {
+              clientData = {
+                email: found.email || email,
+                dni: found.dni || normDni,
+                nombre: found.nombre || 'Cliente Registrado',
+                plan: selectedPlan || 'PRO'
+              };
+            }
+          }
+        } catch (dbErr) {
+          console.warn('[Cliente DB Query warning]:', dbErr);
+        }
+      }
+
+      // Si no hay Supabase o es un cliente nuevo con formato válido de DNI y email
+      if (!clientData && looksLikeDni) {
+        clientData = {
+          email: email,
+          dni: normDni,
+          nombre: email.split('@')[0].toUpperCase(),
+          plan: selectedPlan || 'PRO'
+        };
+      }
+
+      if (clientData) {
+        const targetPlan = selectedPlan === 'ENTERPRISE' ? 'ENTERPRISE' : 'PRO';
+        loggedInUser = {
+          email: clientData.email,
+          dni: clientData.dni,
+          razonSocial: clientData.nombre,
+          nombre: clientData.nombre,
+          rol: 'CLIENTE',
+          isCliente: true,
+          plan: targetPlan,
+          id: 'cli_' + clientData.dni
+        };
+
+        // Guardar credenciales de sesión cliente
+        localStorage.setItem('gestarian_user_session', JSON.stringify(loggedInUser));
+        localStorage.setItem('gestarian_cliente_portal_saved_auth', JSON.stringify({
+          email: clientData.email,
+          pass: clientData.dni,
+          nombre: clientData.nombre
+        }));
+        sessionStorage.setItem('gestarian_account_chosen', 'true');
+
+        // Notificar a la Suite Unificada de React
+        window.dispatchEvent(new CustomEvent('gestarian-auth-change', { detail: loggedInUser }));
+
+        showUserLoggedInUI(loggedInUser);
+        closeModal('modal-auth');
+
+        // Desplazar a la Suite Unificada y enfocar el espacio de trabajo
+        const suiteEl = document.getElementById('suite-workspace');
+        if (suiteEl) {
+          suiteEl.scrollIntoView({ behavior: 'smooth' });
+        }
+        return;
+      }
+    }
+
+    // B) Flujo de acceso como TALLER / USUARIO
+    loggedInUser = { email, plan: selectedPlan, rol: 'ADMIN' };
 
     if (supabaseClient) {
-      const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: passwordOrDni });
       if (error) {
-        showError('Credenciales incorrectas o usuario no encontrado: ' + error.message);
+        // Si falló supabase y parecía DNI, avisar amigablemente
+        if (looksLikeDni) {
+          showError('No se encontró cliente con ese Email y DNI. Comprueba los dígitos o marca la casilla de Cliente.');
+        } else {
+          showError('Credenciales incorrectas: ' + error.message);
+        }
         setBtnText(submitBtn, 'Iniciar Sesión y Entrar', false);
         return;
       }
@@ -747,9 +1579,15 @@ async function handleLoginSubmit(e) {
     }
 
     localStorage.setItem('gestarian_user_session', JSON.stringify(loggedInUser));
+    window.dispatchEvent(new CustomEvent('gestarian-auth-change', { detail: loggedInUser }));
     showUserLoggedInUI(loggedInUser);
     closeModal('modal-auth');
-    window.location.href = PLAN_URLS[selectedPlan] || PLAN_URLS.pro;
+    
+    // Desplazar a la suite
+    const suiteEl = document.getElementById('suite-workspace');
+    if (suiteEl) {
+      suiteEl.scrollIntoView({ behavior: 'smooth' });
+    }
   } catch (err) {
     console.error('Error iniciando sesión:', err);
     showError('Error al iniciar sesión. Compruebe sus datos.');
@@ -1542,3 +2380,19 @@ window.nextChapter = nextChapter;
 window.handleProgressBarClick = handleProgressBarClick;
 window.toggleVideoAudio = toggleVideoAudio;
 window.manualTriggerSpeech = manualTriggerSpeech;
+
+// Roadmap interactivo: Calidad opcional, subida de fotos, cobros y recibos
+window.toggleRoadmapProDrawer = toggleRoadmapProDrawer;
+window.marcarCitaPro = marcarCitaPro;
+window.enviarNotificacionCitaWhatsApp = enviarNotificacionCitaWhatsApp;
+window.derivarCitaRedEnterprise = derivarCitaRedEnterprise;
+window.openExpedientesModal = openExpedientesModal;
+window.switchExpedientesVersion = switchExpedientesVersion;
+window.switchExpedientesTab = switchExpedientesTab;
+window.toggleBudgetAcceptedState = toggleBudgetAcceptedState;
+window.toggleRepairFinishedState = toggleRepairFinishedState;
+window.toggleControlCalidadRoadmap = toggleControlCalidadRoadmap;
+window.handleRoadmapImageUpload = handleRoadmapImageUpload;
+window.registrarAbonoRoadmap = registrarAbonoRoadmap;
+window.abrirReciboDesdeRoadmap = abrirReciboDesdeRoadmap;
+window.enviarRecordatorioPagoRoadmap = enviarRecordatorioPagoRoadmap;

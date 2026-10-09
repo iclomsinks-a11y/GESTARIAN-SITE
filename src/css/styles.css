@@ -65,12 +65,19 @@ button { font-family: inherit; }
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.1rem clamp(1.2rem, 4vw, 3.5rem);
-  background: linear-gradient(180deg, rgba(4, 4, 10, 0.85) 0%, rgba(4, 4, 10, 0) 100%);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  padding: 0.85rem clamp(1rem, 3.5vw, 3.5rem);
+  background: linear-gradient(180deg, rgba(4, 4, 10, 0.92) 0%, rgba(4, 4, 10, 0.4) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   transition: background 0.4s var(--ease), border-color 0.4s var(--ease), transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
-  border-bottom: 1px solid transparent;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 1rem;
+}
+
+.site-header-top {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
 }
 
 body.universe-focused .site-header,
@@ -80,13 +87,13 @@ body.universe-focused .site-header,
 }
 
 .site-header.scrolled {
-  background: rgba(6, 6, 14, 0.82);
-  border-bottom-color: var(--border);
+  background: rgba(6, 6, 14, 0.94);
+  border-bottom-color: rgba(255, 255, 255, 0.12);
 }
 
 .logo {
   font-family: var(--font);
-  font-size: 1.6rem;
+  font-size: 1.45rem;
   font-weight: 800;
   letter-spacing: 0.12em;
   text-decoration: none;
@@ -94,18 +101,42 @@ body.universe-focused .site-header,
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
+  flex-shrink: 0;
 }
 
-.header-nav { display: flex; align-items: center; gap: 1.4rem; }
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.header-nav::-webkit-scrollbar {
+  display: none;
+}
 
 .header-nav .nav-link {
   color: var(--text-muted);
   text-decoration: none;
   font-weight: 500;
-  font-size: 0.95rem;
-  transition: color 0.2s;
+  font-size: 0.88rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: all 0.2s;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
 }
-.header-nav .nav-link:hover { color: #fff; }
+.header-nav .nav-link:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.15);
+}
 
 .user-profile-badge {
   display: none;
@@ -263,11 +294,20 @@ body.universe-focused .site-header,
 
 .hero-actions { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
 
-/* Ocultar píldora "Explorar el Universo" en móvil y tablet portrait */
+/* Botones de acción del Hero en móvil y tablet portrait */
 @media (max-width: 768px), (max-width: 1024px) and (orientation: portrait) {
-  #hero-explore,
   .hero-actions {
-    display: none !important;
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 320px;
+    margin: 0 auto 1.5rem auto;
+    gap: 0.75rem;
+  }
+  .hero-actions .btn {
+    width: 100%;
+    justify-content: center;
   }
 }
 
@@ -540,11 +580,52 @@ body.universe-focused .site-header,
   .plans-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
+@media (max-width: 900px) {
+  .site-header {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0.6rem 0.8rem;
+    gap: 0.45rem;
+    background: rgba(6, 6, 14, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .site-header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+  .header-nav {
+    display: flex !important;
+    width: 100%;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    gap: 0.45rem;
+    padding-bottom: 2px;
+  }
+  .header-nav .nav-link {
+    display: inline-flex !important;
+    font-size: 0.8rem !important;
+    padding: 0.35rem 0.65rem;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    color: #f1f5f9 !important;
+    font-weight: 600;
+  }
+  .header-nav .nav-link:hover,
+  .header-nav .nav-link:active {
+    background: rgba(255, 255, 255, 0.18);
+    color: #ffffff !important;
+  }
+}
+
 @media (max-width: 720px) {
   body {
     font-size: 16px; /* Cuerpo mínimo 16px */
   }
-  .header-nav .nav-link { display: none; }
   .plans-grid { grid-template-columns: 1fr; }
   .hero-actions { flex-direction: column; width: 100%; max-width: 360px; }
   .hero-actions .btn { width: 100%; }
@@ -856,7 +937,339 @@ body.universe-focused .site-header,
   transform: translateY(-1px);
 }
 
-/* ROADMAP DE EXPEDIENTES */
+/* Subheader estilo Gestarian Pro (Pestañas Abiertos/Cerrados + Matrícula + Botón Datos) */
+.exp-pro-subnav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.exp-pro-filter-pills {
+  display: inline-flex;
+  background: #f1f5f9;
+  border-radius: 999px;
+  padding: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.exp-pro-filter-btn {
+  border: none;
+  background: transparent;
+  color: #475569;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 6px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.exp-pro-filter-btn.active {
+  background: #0f172a;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.25);
+}
+
+.exp-pro-filter-count {
+  font-size: 0.72rem;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.exp-pro-filter-btn:not(.active) .exp-pro-filter-count {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.exp-pro-vehicle-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+
+.plate-badge-es {
+  display: inline-flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1.5px solid #0f172a;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.plate-badge-es .plate-flag {
+  background: #003399;
+  color: #ffcc00;
+  font-weight: 800;
+  font-size: 0.68rem;
+  padding: 6px 7px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.plate-badge-es .plate-number {
+  font-family: monospace;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: 0.12em;
+  padding: 5px 12px;
+}
+
+.vehicle-model-pill {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 6px 14px;
+  border-radius: 6px;
+}
+
+.btn-datos-pro {
+  margin-left: auto;
+  background: #1d4ed8;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 7px 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(29, 78, 216, 0.35);
+  transition: all 0.2s ease;
+}
+
+.btn-datos-pro:hover {
+  background: #1e40af;
+  transform: translateY(-1px);
+}
+
+.btn-datos-badge {
+  background: rgba(255, 255, 255, 0.25);
+  font-size: 0.7rem;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+.exp-roadmap-pro-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+
+.roadmap-pro-bar {
+  display: flex;
+  align-items: center;
+  position: relative;
+  border-radius: 14px;
+  padding: 18px 24px;
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s ease, filter 0.15s ease;
+  user-select: none;
+}
+
+.roadmap-pro-bar:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.04);
+}
+
+.roadmap-pro-bar.bar-green {
+  background: #009a58;
+}
+
+.roadmap-pro-bar.bar-orange {
+  background: #ff8c00;
+}
+
+.roadmap-pro-bar.bar-gray {
+  background: #879ab3;
+}
+
+.roadmap-pro-bar.bar-purple {
+  background: #7c3aed;
+}
+
+.roadmap-pro-bar.bar-blue {
+  background: #2563eb;
+}
+
+.roadmap-pro-bar.bar-cyan {
+  background: #0284c7;
+}
+
+.roadmap-pro-bar.bar-amber {
+  background: #d97706;
+}
+
+.roadmap-pro-bar .circle-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(255, 255, 255, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  font-weight: 300;
+  color: #fff;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.roadmap-pro-bar:hover .circle-icon {
+  transform: scale(1.08);
+}
+
+.roadmap-pro-bar .bar-center-content {
+  flex: 1;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-right: 48px; /* Balance the icon width to keep center text exactly centered */
+}
+
+.roadmap-pro-bar .bar-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #ffffff;
+}
+
+.roadmap-pro-bar .bar-subtitle {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Panel expandible flotante limpio para cada parada */
+.roadmap-pro-detail-drawer {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-top: -6px;
+  margin-bottom: 6px;
+  animation: fadeInDown 0.2s ease;
+  color: #f8fafc;
+}
+
+.roadmap-drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.roadmap-drawer-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.roadmap-drawer-close {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 1.25rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.roadmap-drawer-close:hover {
+  color: #ffffff;
+}
+
+.roadmap-meta-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.roadmap-meta-pill {
+  font-size: 0.74rem;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #cbd5e1;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.roadmap-meta-pill strong {
+  color: #ffffff;
+}
+
+.exp-enterprise-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  margin-bottom: 6px;
+  padding: 8px 14px;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 10px;
+}
+
+.ent-net-chip {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #c7d2fe;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.btn-enterprise-action {
+  background: rgba(99, 102, 241, 0.22);
+  border: 1px solid #6366f1;
+  color: #e0e7ff;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.btn-enterprise-action:hover {
+  background: rgba(99, 102, 241, 0.38);
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 .exp-roadmap-section {
   background: rgba(10, 10, 22, 0.75);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -1203,6 +1616,236 @@ body.universe-focused .site-header,
 .btn-reset-sim:hover {
   background: rgba(255, 255, 255, 0.15);
   color: #fff;
+}
+
+/* =========================================================
+   VISOR DOCUMENTAL MINIMALISTA (ESTILO GESTARIAN QUICK)
+   Facturas, Presupuestos, Recibos y Órdenes de Trabajo
+   ========================================================= */
+.doc-minimalista-container {
+  max-width: 780px !important;
+  background: #070712 !important;
+  border-radius: 18px !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.15) !important;
+  padding: 2.2rem 2.4rem 4.5rem !important;
+  position: relative !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85) !important;
+  color: #fff !important;
+}
+
+.doc-minimalista-container.border-status-completed {
+  border-color: rgba(34, 197, 94, 0.55) !important;
+  box-shadow: 0 0 35px -8px rgba(34, 197, 94, 0.35) !important;
+}
+
+.doc-minimalista-container.border-status-progress {
+  border-color: rgba(168, 85, 247, 0.55) !important;
+  box-shadow: 0 0 35px -8px rgba(168, 85, 247, 0.35) !important;
+}
+
+.doc-minimalista-container.border-status-sent {
+  border-color: rgba(56, 189, 248, 0.55) !important;
+  box-shadow: 0 0 35px -8px rgba(56, 189, 248, 0.35) !important;
+}
+
+.doc-minimalista-container.border-status-pending {
+  border-color: rgba(245, 196, 81, 0.55) !important;
+  box-shadow: 0 0 35px -8px rgba(245, 196, 81, 0.35) !important;
+}
+
+/* Barra flotante de acciones en el pié del documento */
+.floating-doc-action-bar {
+  position: absolute;
+  bottom: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(13, 13, 28, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.85);
+  z-index: 20;
+}
+
+.floating-icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.floating-icon-btn svg {
+  width: 19px;
+  height: 19px;
+}
+
+.floating-icon-btn:hover {
+  transform: scale(1.12);
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.floating-icon-btn:active {
+  transform: scale(0.95);
+}
+
+.floating-btn-wa:hover {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: rgba(34, 197, 94, 0.45);
+  color: #86efac;
+}
+
+.floating-btn-mail:hover {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: rgba(56, 189, 248, 0.45);
+  color: #7dd3fc;
+}
+
+.floating-btn-dl:hover {
+  background: rgba(168, 85, 247, 0.2);
+  border-color: rgba(168, 85, 247, 0.45);
+  color: #d8b4fe;
+}
+
+.floating-btn-close:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.45);
+  color: #fca5a5;
+}
+
+.dock-divider {
+  width: 1px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+/* Tarjetas minimalistas con bordes de color por estado (diseño Quick y Pro) */
+.card-minimal-gestarian {
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.04) 0%, rgba(12, 12, 24, 0.98) 100%);
+  border-radius: 14px;
+  padding: 1.25rem;
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+  transition: all 0.25s ease;
+}
+
+.card-minimal-gestarian.status-completed {
+  border-color: rgba(34, 197, 94, 0.55);
+  box-shadow: 0 8px 24px -6px rgba(34, 197, 94, 0.25);
+}
+
+.card-minimal-gestarian.status-progress {
+  border-color: rgba(168, 85, 247, 0.55);
+  box-shadow: 0 8px 24px -6px rgba(168, 85, 247, 0.25);
+}
+
+.card-minimal-gestarian.status-pending {
+  border-color: rgba(245, 196, 81, 0.55);
+  box-shadow: 0 8px 24px -6px rgba(245, 196, 81, 0.25);
+}
+
+.card-minimal-gestarian.status-sent {
+  border-color: rgba(56, 189, 248, 0.55);
+  box-shadow: 0 8px 24px -6px rgba(56, 189, 248, 0.25);
+}
+
+/* Roadmap Minimalista Interactivo: Subida de imágenes, toggle Calidad y Panel de Cobro */
+.roadmap-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #e2e8f0;
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.roadmap-upload-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
+.roadmap-images-grid {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.roadmap-img-thumb {
+  width: 58px;
+  height: 42px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.roadmap-cobro-card {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 0.9rem;
+  margin-top: 0.7rem;
+}
+
+.roadmap-cobro-stat-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 6px 10px;
+  text-align: right;
+}
+
+.roadmap-cobro-stat-box .label {
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.45);
+  text-transform: uppercase;
+}
+
+.roadmap-cobro-stat-box .val {
+  font-size: 0.95rem;
+  font-weight: 800;
+  font-family: monospace;
+}
+
+.roadmap-abonos-history {
+  list-style: none;
+  padding: 0;
+  margin: 0.6rem 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.roadmap-abono-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.74rem;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 @media (prefers-reduced-motion: reduce) {

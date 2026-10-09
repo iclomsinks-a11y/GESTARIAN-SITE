@@ -641,25 +641,21 @@ function initUniverse() {
       const a = (i / 256) * Math.PI * 2;
       pts.push(new THREE.Vector3(Math.cos(a), 0, Math.sin(a)));
     }
+    const orbitGeo = new THREE.BufferGeometry().setFromPoints(pts);
     const orbit = new THREE.LineLoop(
-      new THREE.BufferGeometry().setFromPoints(pts),
+      orbitGeo,
       new THREE.LineBasicMaterial({ color: colors[1], transparent: true, opacity: 0.16, depthWrite: false })
     );
     scene.add(orbit);
-    orbitLines.push({ line: orbit, R: def.R });
+    orbitLines.push({ line: orbit, geo: orbitGeo, R: def.R });
 
-    // Etiqueta HTML
+    // Etiqueta HTML (solo el nombre del planeta, sin píldoras ni precios)
     const label = document.createElement('div');
     label.className = 'u-label';
     label.style.setProperty('--lc', def.colors[1]);
     label.innerHTML = `
       <div class="inner">
         <span class="name">${plan.name}</span>
-        <span class="meta">${plan.short || ''}</span>
-        <div class="more">
-          <span class="tag">${plan.tagline}${plan.limit ? ' · ' + plan.limit : ''}</span>
-          <span class="cta">${isTouch ? 'Toca para desplegar tarjetas' : 'Haz click para desplegar tarjetas'}</span>
-        </div>
       </div>`;
     label.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -826,7 +822,6 @@ function initUniverse() {
       sLabel.className = 'u-sat' + (s.img ? ' u-sat-has-media' : '') + (isExperiencia ? ' u-sat-experiencia' : '') + (isPortalClientes ? ' u-sat-portal-clientes' : '');
       sLabel.style.setProperty('--lc', def.colors[1]);
       sLabel.innerHTML = `
-        <div class="chip ${isPortalClientes ? 'chip-portal-clientes' : ''}">${s.chip}</div>
         <div class="card ${s.img ? 'card-has-media' : ''} ${isPortalClientes ? 'card-portal-clientes' : ''}">
           <button type="button" class="sat-card-close" onclick="event.stopPropagation(); window.unpinUniversePlanet && window.unpinUniversePlanet();" title="Cerrar tarjetas y volver al universo">&times;</button>
           <h4>${plan.name} · ${s.title}</h4>
@@ -954,33 +949,84 @@ function initUniverse() {
   function measureCards() {
     planets.forEach(p => p.sats.forEach(s => { s.cardW = s.card.offsetWidth || 250; s.cardH = s.card.offsetHeight || 120; }));
   }
+
+  function updateOrbitGeometries(L) {
+    orbitLines.forEach((o) => {
+      const posAttr = o.geo.attributes.position;
+      const posArray = posAttr.array;
+      const R = o.R;
+      const isPort = L.portrait;
+      const Rx = isPort ? R * L.orbitScaleX : R * L.orbitScale;
+      const Ry = isPort ? R * L.orbitScaleY : 0;
+      const Rz = isPort ? R * L.orbitScaleZ : R * L.orbitScale;
+      for (let i = 0; i <= 256; i++) {
+        const a = (i / 256) * Math.PI * 2;
+        posArray[i * 3] = Math.cos(a) * Rx;
+        posArray[i * 3 + 1] = Math.sin(a) * Ry;
+        posArray[i * 3 + 2] = Math.sin(a) * Rz;
+      }
+      posAttr.needsUpdate = true;
+    });
+  }
+
   function computeLayout() {
-    W = section.clientWidth;
-    H = section.clientHeight;
-    const aspect = W / H;
-    const portrait = aspect < 0.9;
+    const newW = section.clientWidth || window.innerWidth || 1024;
+    const newH = section.clientHeight || window.innerHeight || 768;
+    if (Math.abs(newW - W) < 2 && Math.abs(newH - H) < 2 && state.layout) return;
+    W = newW;
+    H = newH;
+    const aspect = Math.max(0.1, W / (H || 1));
+    const portrait = aspect < 1.0;
     const L = portrait
-      ? { portrait, orbitScale: 0.65, sizeScale: 0.85, sunScale: 1.0, phi: 1.1, fov: 50 }
-      : { portrait, orbitScale: 1, sizeScale: 1, sunScale: 1, phi: 1.1, fov: 42 };
+      ? {
+          portrait,
+          orbitScaleX: clamp(aspect * 0.94 * 1.5, 0.70, 1.15),
+          orbitScaleY: clamp((1 / Math.max(0.35, aspect)) * 0.44 * 1.5, 1.15, 1.65),
+          orbitScaleZ: clamp(aspect * 0.94 * 1.5, 0.70, 1.15),
+          orbitScale: 0.975, // 0.65 * 1.5
+          sizeScale: clamp(aspect * 1.0 * 1.5, 1.05, 1.40),
+          sunScale: clamp(aspect * 0.92 * 1.5, 1.10, 1.40),
+          phi: 1.12,
+          fov: 46
+        }
+      : {
+          portrait,
+          orbitScaleX: 1.0,
+          orbitScaleY: 0,
+          orbitScaleZ: 1.0,
+          orbitScale: 1.0,
+          sizeScale: 1.0,
+          sunScale: 1.0,
+          phi: 1.1,
+          fov: 42
+        };
     camera.fov = L.fov;
     camera.aspect = aspect;
     camera.updateProjectionMatrix();
     const tanV = Math.tan(THREE.MathUtils.degToRad(L.fov / 2));
     const tanH = tanV * aspect;
-    const outer = 52.0 * L.orbitScale + 9.75 * L.sizeScale;
-    const dH = (portrait ? outer * 1.05 : outer * 1.12) / tanH;
-    const dV = (outer * Math.cos(L.phi) + 2.5) / (tanV * 0.85);
-    L.dist = Math.max(dH, dV, 36);
+    const outerX = 60.0 * (portrait ? L.orbitScaleX : L.orbitScale) + 8.8 * L.sizeScale;
+    const outerY = 60.0 * (portrait ? L.orbitScaleY : L.orbitScale * Math.cos(L.phi)) + 8.8 * L.sizeScale;
+    const dH = (outerX * (portrait ? 1.05 : 1.12)) / tanH;
+    const dV = (outerY * (portrait ? 1.15 : 1.08)) / tanV;
+    L.dist = portrait ? (Math.max(dH, dV, 36) / 1.5) : Math.max(dH, dV, 36);
     L.tanV = tanV;
     state.layout = L;
     state.phi = L.phi;
     renderer.setSize(W, H, false);
+    updateOrbitGeometries(L);
     measureCards();
   }
   computeLayout();
-  window.addEventListener('resize', computeLayout);
+
+  let resizeRaf = null;
+  const debouncedComputeLayout = () => {
+    if (resizeRaf) cancelAnimationFrame(resizeRaf);
+    resizeRaf = requestAnimationFrame(() => computeLayout());
+  };
+  window.addEventListener('resize', debouncedComputeLayout, { passive: true });
   if (typeof ResizeObserver !== 'undefined') {
-    new ResizeObserver(() => computeLayout()).observe(section);
+    new ResizeObserver(() => debouncedComputeLayout()).observe(section);
   }
 
   /* ---------- Interacción ---------- */
@@ -1075,7 +1121,8 @@ function initUniverse() {
   let audioCtx = null;
   let masterGain = null;
   let isMusicPlaying = false;
-  let isUserMuted = false;
+  // Silenciada por defecto en móvil y arranque seguro sin petardeo
+  let isUserMuted = true;
   let synthInterval = null;
 
   function initSpaceAudio() {
@@ -1217,7 +1264,10 @@ function initUniverse() {
   document.getElementById('sun-panel-close')?.addEventListener('click', exitSunFocus);
   document.getElementById('btn-universe-audio')?.addEventListener('click', toggleUniverseMusic);
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && state.sunFocus && !document.querySelector('.modal-overlay.active')) exitSunFocus();
+    if (e.key === 'Escape') {
+      if (pinnedPlanet || state.hovered) unpinPlanets();
+      else if (state.sunFocus && !document.querySelector('.modal-overlay.active')) exitSunFocus();
+    }
   });
   canvas.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowLeft') state.vTheta -= 0.04;
@@ -1355,6 +1405,14 @@ function initUniverse() {
   }
   canvas.addEventListener('pointerup', (e) => endPointer(e, false));
   canvas.addEventListener('pointercancel', (e) => endPointer(e, true));
+  canvas.addEventListener('webglcontextlost', (e) => {
+    e.preventDefault();
+    state.running = false;
+  }, false);
+  canvas.addEventListener('webglcontextrestored', () => {
+    state.running = true;
+    computeLayout();
+  }, false);
   canvas.addEventListener('pointerleave', (e) => {
     pointer.inside = false;
     if (e.pointerType === 'mouse') { scheduleUnhover(350); state.sunHover = 0; canvas.classList.remove('pointer'); }
@@ -1362,16 +1420,14 @@ function initUniverse() {
 
   section.addEventListener('wheel', () => {}, { passive: true });
 
-  /* ---------- Visibilidad / rendimiento y Entrada de 3 segundos ---------- */
+  /* ---------- Visibilidad / rendimiento y Entrada fluida ---------- */
   let introStarted = false;
   function triggerUniverseEntry() {
+    if (introStarted) return;
     introStarted = true;
-    section.classList.remove('canvas-ready');
-    void section.offsetWidth; // Forzar reflow para animación CSS
     section.classList.add('canvas-ready');
     state.intro = 0;
-    tween(state, { intro: 1, duration: 3.0, ease: 'power2.out', overwrite: 'auto' });
-    playSpaceAmbientMusic();
+    tween(state, { intro: 1, duration: 2.2, ease: 'power2.out', overwrite: 'auto' });
   }
 
   window.enterUniverseIntro = (e) => {
@@ -1400,7 +1456,6 @@ function initUniverse() {
       state.running = en.isIntersecting;
       if (en.isIntersecting) {
         triggerUniverseEntry();
-        resumeSpaceAmbientMusic();
       } else {
         pauseSpaceAmbientMusic();
       }
@@ -1441,17 +1496,19 @@ function initUniverse() {
   }
   function pxRadius(r, pos) {
     const d = camera.position.distanceTo(pos);
-    return (r * H * 0.5) / (d * state.layout.tanV);
+    const tanV = state.layout ? state.layout.tanV : 0.38;
+    return (r * H * 0.5) / (d * tanV);
   }
 
   function tick(dtRaw) {
     if (!state.running) return;
-    if (section.clientWidth !== W || section.clientHeight !== H) {
+    if (!state.layout || section.clientWidth !== W || section.clientHeight !== H) {
       computeLayout();
     }
+    const L = state.layout;
+    if (!L) return;
     const dt = Math.min(dtRaw, 0.05);
     adaptQuality(dt);
-    const L = state.layout;
     state.time += dt;
     const orbitTime = dt * state.timeScale;
 
@@ -1492,9 +1549,10 @@ function initUniverse() {
       dist * Math.sin(state.phi) * Math.cos(state.theta)
     );
 
-    // Punto de mira con sutil deriva espacial viva
+    // Punto de mira con sutil deriva espacial viva (centrado en el espacio disponible en portrait)
+    const portraitLookY = 0;
     const lookX = (!state.hovered && !state.sunFocus && !reducedMotion) ? Math.sin(t * 0.09) * 1.8 : 0;
-    const lookY = (!state.hovered && !state.sunFocus && !reducedMotion) ? Math.cos(t * 0.068) * 1.2 : 0;
+    const lookY = portraitLookY + ((!state.hovered && !state.sunFocus && !reducedMotion) ? Math.cos(t * 0.068) * 1.2 : 0);
     const lookZ = (!state.hovered && !state.sunFocus && !reducedMotion) ? Math.sin(t * 0.052 + 1.0) * 1.5 : 0;
     camera.lookAt(lookX, lookY, lookZ);
     camera.updateMatrixWorld();
@@ -1504,16 +1562,12 @@ function initUniverse() {
     stars.rotation.y += dt * 0.004;
     starMat.uniforms.uTime.value = state.time;
 
-    // Hover por ratón (pick una vez por frame)
+    // Hover por ratón (pick una vez por frame): solo actualiza cursor interactivo y estado del Sol (sin abrir tarjetas de planetas)
     if (pointer.needsPick && !pointer.down && pointer.inside) {
       pointer.needsPick = false;
       if (!pinnedPlanet) {
         const hit = state.sunFocus ? null : pick(pointer.x, pointer.y);
-        if (hit && hit.planet) { setHover(hit.planet); state.sunHover = 0; }
-        else {
-          state.sunHover = hit && hit.type === 'sun' ? 1 : 0;
-          if (state.hovered) scheduleUnhover();
-        }
+        state.sunHover = hit && hit.type === 'sun' ? 1 : 0;
         canvas.classList.toggle('pointer', !!hit && !state.sunFocus);
       }
     }
@@ -1580,8 +1634,11 @@ function initUniverse() {
       p.dim = damp(p.dim, dimTarget, 5, dt);
       const fE = smooth(clamp(p.focus, 0, 1));
 
-      const R = p.def.R * L.orbitScale;
-      p.orbitPos.set(Math.cos(p.angle) * R, 0, Math.sin(p.angle) * R);
+      const isPort = L.portrait;
+      const Rx = isPort ? p.def.R * L.orbitScaleX : p.def.R * L.orbitScale;
+      const Ry = isPort ? p.def.R * L.orbitScaleY : 0;
+      const Rz = isPort ? p.def.R * L.orbitScaleZ : p.def.R * L.orbitScale;
+      p.orbitPos.set(Math.cos(p.angle) * Rx, Math.sin(p.angle) * Ry, Math.sin(p.angle) * Rz);
       // primer plano: se acerca por la línea de visión (mantiene su posición en pantalla)
       p.pos.copy(p.orbitPos).lerp(camera.position, 0.42 * fE);
       // los demás se alejan
@@ -1906,16 +1963,6 @@ function initUniverse() {
         const pScale = THREE.MathUtils.lerp(pDistRatio, 1.0, p.focus);
         visibleLabels.push({ el: p.label, x: s.x, y: s.y - rpx - 28, w: 180 * pScale, h: 44 * pScale, scale: pScale });
       }
-      p.sats.forEach(sat => {
-        if (sat.label && !sat.label.classList.contains('hidden') && !sat.label.classList.contains('focus')) {
-          const ss = toScreen(sat.pos);
-          const spx = pxRadius(sat.group.scale.x, sat.pos);
-          const satDist = camera.position.distanceTo(sat.pos);
-          const satDistRatio = clamp(L.dist / Math.max(1, satDist), 0.38, 1.35);
-          const satScale = THREE.MathUtils.lerp(satDistRatio, 1.0, sat.planet.focus);
-          visibleLabels.push({ el: sat.label, x: ss.x, y: ss.y + spx + 10, w: 130 * satScale, h: 32 * satScale, scale: satScale });
-        }
-      });
     });
 
     for (let i = 0; i < visibleLabels.length; i++) {
@@ -1934,7 +1981,7 @@ function initUniverse() {
     }
 
     orbitLines.forEach((o, i) => {
-      o.line.scale.setScalar(o.R * L.orbitScale);
+      o.line.scale.set(1, 1, 1);
       o.line.material.opacity = 0.16 * introK * (1 - planets[i].dim * 0.7) * brightFactor + 0.12 * planets[i].focus;
     });
 

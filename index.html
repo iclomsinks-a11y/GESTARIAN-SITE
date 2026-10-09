@@ -23,23 +23,36 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
   <script src="/src/js/app.js"></script>
   <script type="module" src="/src/js/universe.js"></script>
+  <script type="module" src="/src/main.tsx"></script>
 </head>
 <body>
 
   <!-- Header -->
   <header class="site-header">
-    <a href="#" class="logo" id="logo-home">GESTARIAN</a>
-    <nav class="header-nav" aria-label="Navegación principal">
-      <a href="#universo" class="nav-link" id="nav-universo">El Universo</a>
-      <a href="#planes" class="nav-link" id="nav-planes">Planes</a>
+    <div class="site-header-top">
+      <a href="#" class="logo" id="logo-home">GESTARIAN</a>
+      
+      <div class="header-auth-actions" style="display: flex; align-items: center; gap: 0.6rem;">
+        <div id="user-badge" class="user-profile-badge">
+          <div id="user-avatar" class="user-avatar">U</div>
+          <span id="user-email-display" style="font-weight:600">user@email.com</span>
+          <button class="btn-logout" id="btn-logout" onclick="logoutUser()">Salir</button>
+        </div>
 
-      <div id="user-badge" class="user-profile-badge">
-        <div id="user-avatar" class="user-avatar">U</div>
-        <span id="user-email-display" style="font-weight:600">user@email.com</span>
-        <button class="btn-logout" id="btn-logout" onclick="logoutUser()">Salir</button>
+        <button id="btn-login-trigger" class="btn btn-sm" onclick="openAuthModal('login')">Iniciar Sesión</button>
       </div>
+    </div>
 
-      <button id="btn-login-trigger" class="btn btn-sm" onclick="openAuthModal('login')">Iniciar Sesión</button>
+    <nav class="header-nav" aria-label="Navegación principal">
+      <a href="#universo" class="nav-link" id="nav-universo">🌌 El Universo</a>
+      <a href="#planes" class="nav-link" id="nav-planes">🪐 Planes</a>
+      <a href="#suite-workspace" class="nav-link" id="nav-suite" style="color: var(--c-gold-2); font-weight: 700;">⚡ Suite Unificada</a>
+      <a href="#clientes" class="nav-link" style="color: #d8b4fe; font-weight: 700;" onclick="window.location.hash='clientes'; document.getElementById('suite-workspace')?.scrollIntoView({behavior:'smooth'})">👥 Clientes</a>
+      <a href="#nominas" class="nav-link" onclick="window.location.hash='nominas'; document.getElementById('suite-workspace')?.scrollIntoView({behavior:'smooth'})">💼 Nóminas (TGSS)</a>
+      <a href="#activos" class="nav-link" onclick="window.location.hash='activos'; document.getElementById('suite-workspace')?.scrollIntoView({behavior:'smooth'})">🏢 Activos</a>
+      <a href="#balances" class="nav-link" onclick="window.location.hash='balances'; document.getElementById('suite-workspace')?.scrollIntoView({behavior:'smooth'})">📊 Balances</a>
+      <a href="#aeat" class="nav-link" onclick="window.location.hash='aeat'; document.getElementById('suite-workspace')?.scrollIntoView({behavior:'smooth'})">🏛️ AEAT</a>
+      <a href="#red_empresarial" class="nav-link" onclick="window.location.hash='red_empresarial'; document.getElementById('suite-workspace')?.scrollIntoView({behavior:'smooth'})">🤝 Red B2B</a>
     </nav>
   </header>
 
@@ -56,6 +69,12 @@
         <a href="#universo" class="btn btn-primary" id="hero-explore" onclick="window.enterUniverseIntro && window.enterUniverseIntro(event)">
           Explorar el Universo
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+        </a>
+        <a href="#suite-workspace" class="btn btn-secondary" style="border: 1px solid rgba(255,255,255,0.18);">
+          Abrir Suite Unificada
+        </a>
+        <a href="#clientes" class="btn btn-secondary" onclick="window.location.hash='clientes'; document.getElementById('suite-workspace')?.scrollIntoView({behavior:'smooth'})" style="border: 1px solid rgba(168,85,247,0.4); color: #d8b4fe">
+          👥 Clientes
         </a>
       </div>
 
@@ -103,6 +122,11 @@
         <p>Empieza gratis y crece hasta la red empresarial con vinculación directa a la AEAT.</p>
       </div>
       <div class="plans-grid" id="plans-grid"></div>
+    </section>
+
+    <!-- SUITE UNIFICADA GESTARIAN (React Root) -->
+    <section class="section" id="suite-workspace" style="padding-top: 2rem;">
+      <div id="root"></div>
     </section>
   </main>
 
@@ -248,170 +272,333 @@
         </button>
       </div>
 
-      <!-- CONTENIDO TAB 1: Roadmap de Expedientes -->
-      <div id="view-exp-roadmap" class="exp-view-panel">
-        <!-- Ficha del Expediente Activo -->
-        <div class="exp-summary-card">
-          <div class="exp-meta-item">
-            <span class="exp-meta-label">Número de Expediente</span>
-            <span class="exp-meta-value" style="color: var(--c-quick)">EXP-2026-0842</span>
-          </div>
-          <div class="exp-meta-item">
-            <span class="exp-meta-label">Vehículo / Matrícula</span>
-            <span class="exp-meta-value">Mercedes-Benz A200d · <strong>2849-LKR</strong></span>
-          </div>
-          <div class="exp-meta-item">
-            <span class="exp-meta-label">Cliente Titular</span>
-            <span class="exp-meta-value">Juan Pérez Gómez (48.912.431-K)</span>
-          </div>
-          <div class="exp-meta-item">
-            <span class="exp-meta-label">Presupuesto Asociado</span>
-            <span class="exp-meta-value">
-              <span class="exp-badge-linked" onclick="switchExpedientesTab('budgets')" title="Ver tarjeta completa del presupuesto">
-                🔗 #PRE-2026-419 (459,80 €) →
-              </span>
-            </span>
+      <!-- CONTENIDO TAB 1: Roadmap de Expedientes (DISEÑO AUTÉNTICO GESTARIAN PRO) -->
+      <div id="view-exp-roadmap" class="exp-view-panel" style="background:#ffffff;border-radius:18px;padding:24px 28px;color:#0f172a;box-shadow:0 10px 40px rgba(0,0,0,0.3)">
+        
+        <!-- Fila Subheader: Pestañas Abiertos/Cerrados + Matrícula + Botón Datos -->
+        <div class="exp-pro-subnav">
+          <div class="exp-pro-filter-pills">
+            <button type="button" class="exp-pro-filter-btn active" id="pro-filter-abiertos">
+              Abiertos <span class="exp-pro-filter-count" id="pro-badge-count-abiertos">1</span>
+            </button>
+            <button type="button" class="exp-pro-filter-btn" id="pro-filter-cerrados">
+              Cerrados <span class="exp-pro-filter-count">0</span>
+            </button>
           </div>
         </div>
 
-        <!-- Sección del Roadmap de Fases -->
-        <div class="exp-roadmap-section">
-          <div class="roadmap-header-row">
-            <div class="roadmap-title">
-              <span>🚀</span> Roadmap de Progreso del Expediente
+        <!-- Tira de Matrícula y Botón Datos -->
+        <div class="exp-pro-vehicle-strip">
+          <div class="plate-badge-es">
+            <div class="plate-flag">
+              <span>★</span>
+              <span>E</span>
             </div>
-            <div id="roadmap-status-badge" class="step-badge step-badge-green">
-              <!-- Actualizado dinámicamente -->
-              ✓ PRESUPUESTO ACEPTADO POR EL CLIENTE
+            <div class="plate-number" id="pro-matricula-display">4421HJK</div>
+          </div>
+          <div class="vehicle-model-pill" id="pro-modelo-display">
+            MERCEDES-BENZ SPRINTER 316 CDI
+          </div>
+          <button type="button" class="btn-datos-pro" onclick="toggleRoadmapProDrawer('datos')">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+            <span>Datos</span>
+            <span class="btn-datos-badge">1 tarea</span>
+          </button>
+        </div>
+
+        <!-- Tira exclusiva de interconexión Enterprise (activa solo en versión Enterprise) -->
+        <div id="exp-enterprise-network-strip" class="exp-enterprise-strip" style="display:none">
+          <span class="ent-net-chip">🌐 Red B2B: Sede Central · 10 Estaciones Conectadas</span>
+          <span class="ent-net-chip">🏛️ Sede AEAT Activa</span>
+          <span class="ent-net-chip">🛡️ Derivación Automática de Citas</span>
+        </div>
+
+        <!-- Cajón opcional de detalles del vehículo / expediente -->
+        <div id="drawer-pro-datos" class="roadmap-pro-detail-drawer" style="display:none;background:#f8fafc;border:1px solid #cbd5e1;color:#0f172a">
+          <div class="roadmap-drawer-header">
+            <strong style="font-size:0.9rem">Expediente EXP-2026-0842 · <span id="datos-drawer-cliente-nombre">Juan Pérez Gómez</span></strong>
+            <div style="display:flex;align-items:center;gap:10px">
+              <a href="tel:+34600123456" title="Llamar al cliente" style="color:#64748b;display:inline-flex;align-items:center;text-decoration:none" onmouseover="this.style.color='#059669'" onmouseout="this.style.color='#64748b'"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg></a>
+              <a href="https://wa.me/34600123456" target="_blank" rel="noopener" title="Enviar WhatsApp" style="color:#64748b;display:inline-flex;align-items:center;text-decoration:none" onmouseover="this.style.color='#059669'" onmouseout="this.style.color='#64748b'"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg></a>
+              <!-- Botón flotante eliminar cliente: cubo de la basura, sin relleno, sin envoltorio -->
+              <button type="button" onclick="eliminarClienteRoadmapPro('Juan Pérez Gómez')" title="Eliminar cliente" aria-label="Eliminar cliente" style="background:none;border:none;padding:0;margin:0;color:#64748b;cursor:pointer;display:inline-flex;align-items:center;transition:color 0.15s ease" onmouseover="this.style.color='#e11d48'" onmouseout="this.style.color='#64748b'">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  <line x1="10" y1="11" x2="10" y2="17"></line>
+                  <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+              </button>
+              <button type="button" class="roadmap-drawer-close" onclick="toggleRoadmapProDrawer('datos')" style="color:#64748b">&times;</button>
             </div>
           </div>
-
-          <!-- Timeline de Fases -->
-          <div class="roadmap-timeline">
-            <!-- Fase 1 -->
-            <div class="roadmap-step-item step-completed">
-              <div class="step-node-icon">✓</div>
-              <div class="step-body-content">
-                <div class="step-title-row">
-                  <span class="step-title-text">Fase 1: Entrada y Diagnóstico Inicial del Vehículo</span>
-                  <span class="step-badge step-badge-green">Completado</span>
-                </div>
-                <div class="step-description-text">
-                  Recepción del vehículo en taller, verificación de kilometraje (84.200 km) y escaneo inteligente OBD con IA.
-                </div>
-                <div class="step-audit-log">
-                  <span>📅</span> 07/10/2026 08:30 · Registrado por Taller Central
-                </div>
-              </div>
-            </div>
-
-            <!-- Fase 2 -->
-            <div class="roadmap-step-item step-completed">
-              <div class="step-node-icon">✓</div>
-              <div class="step-body-content">
-                <div class="step-title-row">
-                  <span class="step-title-text">Fase 2: Confección y Envío del Presupuesto #PRE-2026-419</span>
-                  <span class="step-badge step-badge-green">Completado</span>
-                </div>
-                <div class="step-description-text">
-                  Presupuesto detallado generado con OCR de recambios originales (459,80 €) y remitido por email y WhatsApp al cliente con enlace único de acceso.
-                </div>
-                <div class="step-audit-log">
-                  <span>📅</span> 07/10/2026 09:15 · Enviado al cliente con invitación digital
-                </div>
-              </div>
-            </div>
-
-            <!-- Fase 3 (DINÁMICA: SE ACTUALIZA CUANDO EL CLIENTE ACEPTA) -->
-            <div class="roadmap-step-item step-accepted-live" id="roadmap-step-acceptance">
-              <div class="step-node-icon" id="step-3-icon">✓</div>
-              <div class="step-body-content">
-                <div class="step-title-row">
-                  <span class="step-title-text" id="step-3-title">
-                    Fase 3: Aprobación del Presupuesto por el Cliente
-                  </span>
-                  <span class="step-badge step-badge-green" id="step-3-badge">
-                    ✓ Aceptado en Área de Clientes
-                  </span>
-                </div>
-                <div class="step-description-text" id="step-3-desc">
-                  El cliente ha revisado las partidas y ha aceptado el presupuesto #PRE-2026-419 desde su Área de Clientes con firma y conformidad digital.
-                </div>
-                <div class="step-audit-log" id="step-3-log">
-                  <span>🟢</span> <strong id="step-3-timestamp">07/10/2026 09:42:18</strong> · Aceptado por Juan Pérez Gómez (DNI: 48.912.431-K) mediante invitación segura.
-                </div>
-              </div>
-            </div>
-
-            <!-- Fase 4 (DINÁMICA: SE ACTIVA AL ACEPTAR EL PRESUPUESTO) -->
-            <div class="roadmap-step-item step-active-now" id="roadmap-step-execution">
-              <div class="step-node-icon" id="step-4-icon">⚙️</div>
-              <div class="step-body-content">
-                <div class="step-title-row">
-                  <span class="step-title-text" id="step-4-title">
-                    Fase 4: Ejecución de Trabajos y Reparación en Taller
-                  </span>
-                  <span class="step-badge step-badge-purple" id="step-4-badge">
-                    En Curso / Activa
-                  </span>
-                </div>
-                <div class="step-description-text" id="step-4-desc">
-                  Mecánico asignado. Módulo de evolución visual activo: se están registrando fotos y notas del proceso en tiempo real para el cliente.
-                </div>
-                <div class="step-audit-log" id="step-4-log">
-                  <span>📸</span> Seguimiento visual y orden de taller vinculada al expediente EXP-2026-0842.
-                </div>
-              </div>
-            </div>
-
-            <!-- Fase 5 -->
-            <div class="roadmap-step-item">
-              <div class="step-node-icon">5</div>
-              <div class="step-body-content">
-                <div class="step-title-row">
-                  <span class="step-title-text">Fase 5: Control de Calidad y Pruebas de Funcionamiento</span>
-                  <span class="step-badge step-badge-gray">Pendiente</span>
-                </div>
-                <div class="step-description-text">
-                  Test de diagnosis post-reparación y prueba de carretera antes de autorizar la entrega.
-                </div>
-              </div>
-            </div>
-
-            <!-- Fase 6 -->
-            <div class="roadmap-step-item">
-              <div class="step-node-icon">6</div>
-              <div class="step-body-content">
-                <div class="step-title-row">
-                  <span class="step-title-text">Fase 6: Vehículo Listo, Facturación y Entrega</span>
-                  <span class="step-badge step-badge-gray">Pendiente</span>
-                </div>
-                <div class="step-description-text">
-                  Emisión de factura final, notificación automática al cliente y cierre documental del expediente.
-                </div>
-              </div>
-            </div>
+          <div class="roadmap-meta-pills" style="margin-bottom:0">
+            <span class="roadmap-meta-pill" style="color:#334155;background:#e2e8f0;border-color:#cbd5e1">Chasis: <strong>WDB9066351S...</strong></span>
+            <span class="roadmap-meta-pill" style="color:#334155;background:#e2e8f0;border-color:#cbd5e1">Kilómetros: <strong>84.210 km</strong></span>
+            <span class="roadmap-meta-pill" style="color:#334155;background:#e2e8f0;border-color:#cbd5e1">Teléfono: <strong>+34 600 123 456</strong></span>
+            <span class="roadmap-meta-pill" style="color:#334155;background:#e2e8f0;border-color:#cbd5e1">Presupuesto: <strong>459,80 € (#PRE-2026-419)</strong></span>
           </div>
         </div>
 
-        <!-- Banner de prueba interactiva rápida -->
-        <div class="client-simulator-box">
+        <!-- LISTA DE BARRAS REDONDEADAS GESTARIAN PRO (MINIMALISTA) -->
+        <div class="exp-roadmap-pro-container">
+          
+          <!-- BARRA 1: RECEPCIÓN (Verde) -->
+          <div class="roadmap-pro-bar bar-green" id="bar-pro-recepcion" onclick="toggleRoadmapProDrawer('recepcion')">
+            <div class="circle-icon">＋</div>
+            <div class="bar-center-content">
+              <span class="bar-title">RECEPCIÓN</span>
+              <span class="bar-subtitle" id="sub-pro-recepcion">RECEPCIÓN REGISTRADA</span>
+            </div>
+          </div>
+          <div id="drawer-pro-recepcion" class="roadmap-pro-detail-drawer" style="display:none">
+            <div class="roadmap-drawer-header">
+              <span class="roadmap-drawer-title" style="color:#86efac">🛠️ RECEPCIÓN Y ENTRADA DE VEHÍCULO</span>
+              <button type="button" class="roadmap-drawer-close" onclick="toggleRoadmapProDrawer('recepcion')">&times;</button>
+            </div>
+            <div class="roadmap-meta-pills">
+              <span class="roadmap-meta-pill">Odómetro: <strong>84.210 km</strong></span>
+              <span class="roadmap-meta-pill">Nivel: <strong>3/4 Tanque</strong></span>
+              <span class="roadmap-meta-pill">Check-in: <strong style="color:#86efac">Registrado OK</strong></span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <label class="roadmap-upload-btn">
+                <span>📷 Subir Fotos Recepción</span>
+                <input type="file" accept="image/*" multiple style="display:none" onchange="handleRoadmapImageUpload(event, 'recepcion')">
+              </label>
+              <div class="roadmap-images-grid" id="roadmap-images-recepcion">
+                <img src="assets/vehiculo-evolucion.jpg" alt="Recepción" class="roadmap-img-thumb" title="Recepción">
+              </div>
+            </div>
+          </div>
+
+          <!-- BARRA 2: PRESUPUESTO (Naranja) -->
+          <div class="roadmap-pro-bar bar-orange" id="bar-pro-presupuesto" onclick="toggleRoadmapProDrawer('presupuesto')">
+            <div class="circle-icon">＋</div>
+            <div class="bar-center-content">
+              <span class="bar-title">PRESUPUESTO</span>
+              <span class="bar-subtitle" id="sub-pro-presupuesto">PRESUPUESTO ACEPTADO · 459,80 €</span>
+            </div>
+          </div>
+          <div id="drawer-pro-presupuesto" class="roadmap-pro-detail-drawer" style="display:none">
+            <div class="roadmap-drawer-header">
+              <span class="roadmap-drawer-title" style="color:#fde68a">💶 PRESUPUESTO ASOCIADO: #PRE-2026-419</span>
+              <button type="button" class="roadmap-drawer-close" onclick="toggleRoadmapProDrawer('presupuesto')">&times;</button>
+            </div>
+            <div class="roadmap-meta-pills">
+              <span class="roadmap-meta-pill">Total: <strong>459,80 €</strong></span>
+              <span class="roadmap-meta-pill" id="presupuesto-meta-estado">Estado: <strong style="color:#86efac">Aceptado</strong></span>
+              <span class="roadmap-meta-pill">Validez: <strong>15 días</strong></span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button type="button" class="btn btn-sm" onclick="openMinimalistDocModal('PRESUPUESTO', 'PRE-2026-419')" style="background:linear-gradient(135deg,#f59e0b,#ea580c);color:#fff;border:none;border-radius:6px;font-size:0.75rem;padding:6px 14px;font-weight:700;cursor:pointer">
+                📄 Ver Presupuesto Minimalista
+              </button>
+              <button type="button" class="btn btn-sm" onclick="toggleBudgetAcceptedState(!isBudget419Accepted)" style="background:rgba(255,255,255,0.12);color:#fff;border:1px solid rgba(255,255,255,0.25);border-radius:6px;font-size:0.75rem;padding:6px 12px;cursor:pointer">
+                Alternar Estado (Aceptado / Borrador)
+              </button>
+            </div>
+          </div>
+
+          <!-- BARRA 3: CITA (Azul o Gris según estado) -->
+          <div class="roadmap-pro-bar bar-blue" id="bar-pro-cita" onclick="toggleRoadmapProDrawer('cita')">
+            <div class="circle-icon">＋</div>
+            <div class="bar-center-content">
+              <span class="bar-title">CITA</span>
+              <span class="bar-subtitle" id="sub-pro-cita">CITA CONFIRMADA · 12 OCT 09:30</span>
+            </div>
+          </div>
+          <div id="drawer-pro-cita" class="roadmap-pro-detail-drawer" style="display:none">
+            <div class="roadmap-drawer-header">
+              <span class="roadmap-drawer-title" style="color:#93c5fd">📅 CITA PREVIA EN TALLER</span>
+              <button type="button" class="roadmap-drawer-close" onclick="toggleRoadmapProDrawer('cita')">&times;</button>
+            </div>
+            <div class="roadmap-meta-pills">
+              <span class="roadmap-meta-pill">Fecha: <strong id="cita-pill-fecha">12/10/2026</strong></span>
+              <span class="roadmap-meta-pill">Hora: <strong id="cita-pill-hora">09:30h</strong></span>
+              <span class="roadmap-meta-pill">Puesto: <strong>Elevador 2</strong></span>
+              <span class="roadmap-meta-pill" id="cita-pill-estado">Estado: <strong style="color:#86efac">Confirmada</strong></span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px">
+              <button type="button" class="btn btn-sm" onclick="marcarCitaPro(true)" style="background:#2563eb;color:#fff;border:none;border-radius:6px;font-size:0.75rem;padding:6px 12px;font-weight:700;cursor:pointer">
+                ✓ Confirmar Cita
+              </button>
+              <button type="button" class="btn btn-sm" onclick="marcarCitaPro(false)" style="background:rgba(255,255,255,0.1);color:#cbd5e1;border:1px solid rgba(255,255,255,0.2);border-radius:6px;font-size:0.75rem;padding:6px 12px;cursor:pointer">
+                ⏳ Marcar Pendiente
+              </button>
+              <button type="button" class="btn btn-sm" onclick="enviarNotificacionCitaWhatsApp()" style="background:rgba(34,197,94,0.18);border:1px solid #22c55e;color:#86efac;border-radius:6px;font-size:0.75rem;padding:6px 12px;font-weight:700;cursor:pointer">
+                📲 Avisar WhatsApp
+              </button>
+              <button type="button" id="cita-enterprise-action" class="btn-enterprise-action" style="display:none" onclick="derivarCitaRedEnterprise()">
+                🌐 Derivar en Red B2B
+              </button>
+            </div>
+          </div>
+
+          <!-- BARRA 4: TALLER (Morado en curso, Verde finalizado, Gris pendiente) -->
+          <div class="roadmap-pro-bar bar-purple" id="bar-pro-taller" onclick="toggleRoadmapProDrawer('taller')">
+            <div class="circle-icon">＋</div>
+            <div class="bar-center-content">
+              <span class="bar-title">TALLER</span>
+              <span class="bar-subtitle" id="sub-pro-taller">EN CURSO · REPARACIÓN</span>
+            </div>
+          </div>
+          <div id="drawer-pro-taller" class="roadmap-pro-detail-drawer" style="display:none">
+            <div class="roadmap-drawer-header">
+              <span class="roadmap-drawer-title" style="color:#c084fc">⚙️ REPARACIÓN EN TALLER</span>
+              <button type="button" class="roadmap-drawer-close" onclick="toggleRoadmapProDrawer('taller')">&times;</button>
+            </div>
+            <div class="roadmap-meta-pills">
+              <span class="roadmap-meta-pill">Mecánico: <strong>Antonio Ruiz (Box 2)</strong></span>
+              <span class="roadmap-meta-pill" id="taller-meta-estado">Estado: <strong>En Curso</strong></span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+              <label class="roadmap-upload-btn">
+                <span>📸 Subir Fotos Taller</span>
+                <input type="file" accept="image/*" multiple style="display:none" onchange="handleRoadmapImageUpload(event, 'taller')">
+              </label>
+              <div class="roadmap-images-grid" id="roadmap-images-taller">
+                <img src="assets/vehiculo-evolucion.jpg" alt="En taller" class="roadmap-img-thumb" style="object-position:center center">
+              </div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button type="button" id="btn-toggle-fin-taller" class="btn btn-sm" onclick="toggleRepairFinishedState()" style="background:linear-gradient(135deg,#a855f7,#6366f1);color:#fff;border:none;border-radius:6px;font-size:0.75rem;padding:6px 14px;font-weight:700;cursor:pointer">
+                ⚙️ Marcar Finalizado → Desbloquear Facturación
+              </button>
+            </div>
+          </div>
+
+          <!-- BARRA 5: CONTROL DE CALIDAD (Opcional - activación con 1 clic) -->
+          <div class="roadmap-pro-bar bar-gray" id="bar-pro-calidad" onclick="toggleRoadmapProDrawer('calidad')" style="opacity:0.9">
+            <div class="circle-icon">＋</div>
+            <div class="bar-center-content">
+              <span class="bar-title">CONTROL DE CALIDAD</span>
+              <span class="bar-subtitle" id="sub-pro-calidad">OPCIONAL · PULSAR PARA ACTIVAR</span>
+            </div>
+          </div>
+          <div id="drawer-pro-calidad" class="roadmap-pro-detail-drawer" style="display:none">
+            <div class="roadmap-drawer-header">
+              <span class="roadmap-drawer-title" style="color:#38bdf8">🔍 CONTROL DE CALIDAD (OPCIONAL)</span>
+              <button type="button" class="roadmap-drawer-close" onclick="toggleRoadmapProDrawer('calidad')">&times;</button>
+            </div>
+            <div class="roadmap-meta-pills">
+              <span class="roadmap-meta-pill">Pruebas: <strong>Diagnosis OBD y Dinámica</strong></span>
+              <span class="roadmap-meta-pill" id="calidad-meta-estado">Estado: <strong>Desactivado</strong></span>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <button type="button" class="btn btn-sm" id="btn-toggle-calidad-action" onclick="toggleControlCalidadRoadmap()" style="background:#0284c7;color:#fff;border:none;border-radius:6px;font-size:0.75rem;padding:6px 14px;font-weight:700;cursor:pointer">
+                ⚡ Activar / Desactivar con 1 Clic
+              </button>
+              <label class="roadmap-upload-btn">
+                <span>📷 Subir Fotos Calidad</span>
+                <input type="file" accept="image/*" multiple style="display:none" onchange="handleRoadmapImageUpload(event, 'calidad')">
+              </label>
+              <div class="roadmap-images-grid" id="roadmap-images-calidad"></div>
+            </div>
+          </div>
+
+          <!-- BARRA 6: FACTURACIÓN (Verde si taller finalizado, Gris bloqueada) -->
+          <div class="roadmap-pro-bar bar-gray" id="bar-pro-facturacion" onclick="toggleRoadmapProDrawer('facturacion')">
+            <div class="circle-icon">＋</div>
+            <div class="bar-center-content">
+              <span class="bar-title">FACTURACIÓN</span>
+              <span class="bar-subtitle" id="sub-pro-facturacion">BLOQUEADA (ESPERANDO FIN DE TALLER)</span>
+            </div>
+          </div>
+          <div id="drawer-pro-facturacion" class="roadmap-pro-detail-drawer" style="display:none">
+            <div class="roadmap-drawer-header">
+              <span class="roadmap-drawer-title" style="color:#86efac">🧾 FACTURA OFICIAL DEL EXPEDIENTE</span>
+              <button type="button" class="roadmap-drawer-close" onclick="toggleRoadmapProDrawer('facturacion')">&times;</button>
+            </div>
+            <div class="roadmap-meta-pills">
+              <span class="roadmap-meta-pill">Nº Factura: <strong>F260042</strong></span>
+              <span class="roadmap-meta-pill">Total: <strong>459,80 €</strong></span>
+              <span class="roadmap-meta-pill" id="factura-meta-estado">Estado: <strong>En espera</strong></span>
+            </div>
+            <div id="drawer-action-factura" style="display:none;margin-top:6px">
+              <button type="button" class="btn btn-sm btn-primary" onclick="openMinimalistDocModal('FACTURA', 'F260042')" style="background:linear-gradient(135deg,#16a34a,#22c55e);border:none;color:#fff;border-radius:6px;font-weight:700;padding:6px 14px;font-size:0.75rem;cursor:pointer">
+                🧾 Ver Factura Oficial Minimalista (F260042)
+              </button>
+            </div>
+          </div>
+
+          <!-- BARRA 7: CONTROL DE COBRO & RECIBOS -->
+          <div class="roadmap-pro-bar bar-gray" id="bar-pro-cobro" onclick="toggleRoadmapProDrawer('cobro')">
+            <div class="circle-icon">＋</div>
+            <div class="bar-center-content">
+              <span class="bar-title">CONTROL DE COBRO & RECIBOS</span>
+              <span class="bar-subtitle" id="sub-pro-cobro">EN ESPERA DE FACTURACIÓN</span>
+            </div>
+          </div>
+          <div id="drawer-pro-cobro" class="roadmap-pro-detail-drawer" style="display:none">
+            <div class="roadmap-drawer-header">
+              <span class="roadmap-drawer-title" style="color:#fde68a">💳 PANEL DE COBROS, ABONOS Y RECIBOS</span>
+              <button type="button" class="roadmap-drawer-close" onclick="toggleRoadmapProDrawer('cobro')">&times;</button>
+            </div>
+            <div class="roadmap-cobro-card" style="margin-top:0">
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px;margin-bottom:0.7rem">
+                <div class="roadmap-cobro-stat-box">
+                  <div class="label">Total Factura</div>
+                  <div class="val" style="color:#fff">459,80 €</div>
+                </div>
+                <div class="roadmap-cobro-stat-box">
+                  <div class="label">Cobrado</div>
+                  <div class="val" style="color:#4ade80" id="roadmap-cobro-cobrado">0,00 €</div>
+                </div>
+                <div class="roadmap-cobro-stat-box">
+                  <div class="label">Pendiente</div>
+                  <div class="val" style="color:#f87171" id="roadmap-cobro-pendiente">459,80 €</div>
+                </div>
+              </div>
+
+              <!-- Acciones de Cobro y Recibos -->
+              <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+                <button type="button" class="btn btn-sm" onclick="registrarAbonoRoadmap(200)" style="background:rgba(34,197,94,0.18);border:1px solid #22c55e;color:#86efac;border-radius:6px;font-size:0.72rem;padding:5px 10px;cursor:pointer;font-weight:700">
+                  + Cobrar 200 €
+                </button>
+                <button type="button" class="btn btn-sm" onclick="registrarAbonoRoadmap(259.80)" style="background:rgba(34,197,94,0.18);border:1px solid #22c55e;color:#86efac;border-radius:6px;font-size:0.72rem;padding:5px 10px;cursor:pointer;font-weight:700">
+                  + Cobrar Total (459,80 €)
+                </button>
+                <button type="button" class="btn btn-sm" onclick="abrirReciboDesdeRoadmap()" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);color:#fff;border-radius:6px;font-size:0.72rem;padding:5px 10px;cursor:pointer">
+                  💶 Ver Recibo
+                </button>
+                <button type="button" class="btn btn-sm" onclick="enviarRecordatorioPagoRoadmap()" style="background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.4);color:#fde68a;border-radius:6px;font-size:0.72rem;padding:5px 10px;cursor:pointer">
+                  📲 WhatsApp Deuda
+                </button>
+              </div>
+
+              <!-- Historial de Abonos -->
+              <ul class="roadmap-abonos-history" id="roadmap-abonos-list">
+                <li class="roadmap-abono-row" style="color:var(--text-muted)">
+                  <span>Sin abonos registrados aún.</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Banner de prueba interactiva rápida minimalista -->
+        <div class="client-simulator-box" style="margin-top:1.2rem">
           <div class="sim-header-row">
             <div class="sim-title">
-              <span>⚡</span> Probar interacción en tiempo real desde el Área de Clientes
+              <span>⚡</span> Probar interacción en tiempo real del Roadmap
             </div>
-            <div style="display:flex;gap:8px;align-items:center">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
               <button type="button" class="btn-accept-budget-sim" id="btn-quick-accept" onclick="toggleBudgetAcceptedState(true)">
-                <span>✓ Simular Aceptación del Cliente</span>
+                <span>✓ Presupuesto Aceptado</span>
               </button>
-              <button type="button" class="btn-reset-sim" onclick="toggleBudgetAcceptedState(false)">
-                <span>↺ Reiniciar a Pendiente</span>
+              <button type="button" class="btn btn-sm" onclick="toggleRepairFinishedState(true)" style="background:linear-gradient(135deg,#a855f7,#6366f1);color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:0.82rem;font-weight:700;cursor:pointer">
+                <span>⚙️ Finalizar Taller</span>
+              </button>
+              <button type="button" class="btn btn-sm" onclick="marcarCitaPro(true)" style="background:#2563eb;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:0.82rem;font-weight:700;cursor:pointer">
+                <span>📅 Confirmar Cita</span>
+              </button>
+              <button type="button" class="btn-reset-sim" onclick="toggleRepairFinishedState(false); toggleBudgetAcceptedState(false); marcarCitaPro(false)">
+                <span>↺ Reiniciar</span>
               </button>
             </div>
           </div>
-          <p style="font-size:0.84rem;color:var(--text-muted);margin:0">
-            Al pulsar "Simular Aceptación", el Roadmap de este expediente y la Tarjeta del Presupuesto vinculado se sincronizan instantáneamente reflejando el cambio de estado en la versión PRO y ENTERPRISE.
-          </p>
         </div>
       </div>
 
@@ -419,15 +606,25 @@
       <div id="view-exp-budgets" class="exp-view-panel" style="display:none">
         <div class="budget-cards-grid">
           <!-- Tarjeta 1: Vinculada al expediente principal EXP-2026-0842 -->
-          <div class="budget-card budget-accepted" id="budget-card-419">
+          <div class="budget-card budget-accepted card-minimal-gestarian status-completed" id="budget-card-419">
             <div class="budget-card-top">
               <div>
                 <span class="budget-link-pill">
-                  📁 Expediente Vinculado: <strong>EXP-2026-0842</strong>
+                  📁 Expediente: <strong>EXP-2026-0842</strong>
                 </span>
                 <div class="budget-num-title">Presupuesto #PRE-2026-419</div>
-                <div style="font-size:0.82rem;color:var(--text-muted);margin-top:2px">
-                  Cliente: <strong>Juan Pérez Gómez</strong> · Mercedes-Benz A200d (2849-LKR)
+                <div style="font-size:0.82rem;color:var(--text-muted);margin-top:2px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                  <span>Cliente: <strong id="budget-cliente-nombre-419">Juan Pérez Gómez</strong> · Mercedes-Benz A200d (2849-LKR)</span>
+                  <a href="tel:+34600123456" title="Llamar al cliente" style="color:rgba(255,255,255,0.4);display:inline-flex;align-items:center;text-decoration:none" onmouseover="this.style.color='#34d399'" onmouseout="this.style.color='rgba(255,255,255,0.4)'"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg></a>
+                  <!-- Botón flotante eliminar cliente: cubo de la basura, sin relleno, sin envoltorio -->
+                  <button type="button" onclick="eliminarClientePresupuestoPro('419', 'Juan Pérez Gómez')" title="Eliminar cliente" aria-label="Eliminar cliente" style="background:none;border:none;padding:0;margin:0;color:rgba(255,255,255,0.4);cursor:pointer;display:inline-flex;align-items:center;transition:color 0.15s ease" onmouseover="this.style.color='#fb7185'" onmouseout="this.style.color='rgba(255,255,255,0.4)'">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="3 6 5 6 21 6"></polyline>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                      <line x1="10" y1="11" x2="10" y2="17"></line>
+                      <line x1="14" y1="11" x2="14" y2="17"></line>
+                    </svg>
+                  </button>
                 </div>
               </div>
               <span id="budget-badge-status-419" class="step-badge step-badge-green">
@@ -458,18 +655,21 @@
               </div>
             </div>
 
-            <div style="font-size:0.8rem;color:#cbd5e1;padding:0.4rem 0.6rem;background:rgba(0,0,0,0.3);border-radius:6px;margin-bottom:0.8rem">
+            <div style="font-size:0.8rem;color:#cbd5e1;padding:0.5rem 0.7rem;background:rgba(0,0,0,0.3);border-radius:6px;margin-bottom:0.8rem;line-height:1.4">
               <span id="budget-audit-text-419">
-                ✓ <strong>Presupuesto aceptado digitalmente</strong> por el cliente el <span id="budget-time-display">07/10/2026 a las 09:42</span>. Expediente en fase de reparación.
+                ✓ <strong>Presupuesto aceptado digitalmente</strong> por el cliente. Expediente en fase de reparación.
               </span>
+              <div style="color:#f5c451;font-size:0.75rem;margin-top:4px">
+                ℹ️ <em>Nota de facturación: La factura final no se genera directamente desde este presupuesto; se activa en el Roadmap al finalizar los trabajos del taller.</em>
+              </div>
             </div>
 
             <div class="budget-actions-row">
-              <button type="button" class="btn btn-sm btn-primary" onclick="switchExpedientesTab('roadmap')">
-                <span>Ver Roadmap del Expediente EXP-2026-0842 →</span>
+              <button type="button" class="btn btn-sm btn-primary" onclick="openMinimalistDocModal('PRESUPUESTO', 'PRE-2026-419')">
+                <span>📄 Ver Presupuesto Minimalista</span>
               </button>
-              <button type="button" class="btn btn-sm btn-ghost-portal" onclick="switchExpedientesTab('simulator')">
-                <span>📱 Probar en Simulador</span>
+              <button type="button" class="btn btn-sm btn-ghost-portal" onclick="switchExpedientesTab('roadmap')">
+                <span>📋 Ver Roadmap del Expediente →</span>
               </button>
             </div>
           </div>
@@ -482,8 +682,17 @@
                   🏢 Expediente Vinculado: <strong>EXP-2026-0915 (Red Flotas)</strong>
                 </span>
                 <div class="budget-num-title">Presupuesto #PRE-2026-512</div>
-                <div style="font-size:0.82rem;color:var(--text-muted);margin-top:2px">
-                  Empresa: <strong>Transportes & Logística S.L.</strong> · Ford Transit (7104-MTP)
+                <div style="font-size:0.82rem;color:var(--text-muted);margin-top:2px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                  <span>Empresa: <strong id="budget-cliente-nombre-512">Transportes & Logística S.L.</strong> · Ford Transit (7104-MTP)</span>
+                  <!-- Botón flotante eliminar cliente: cubo de la basura, sin relleno, sin envoltorio -->
+                  <button type="button" onclick="eliminarClientePresupuestoPro('512', 'Transportes & Logística S.L.')" title="Eliminar cliente" aria-label="Eliminar cliente" style="background:none;border:none;padding:0;margin:0;color:rgba(255,255,255,0.4);cursor:pointer;display:inline-flex;align-items:center;transition:color 0.15s ease" onmouseover="this.style.color='#fb7185'" onmouseout="this.style.color='rgba(255,255,255,0.4)'">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="3 6 5 6 21 6"></polyline>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                      <line x1="10" y1="11" x2="10" y2="17"></line>
+                      <line x1="14" y1="11" x2="14" y2="17"></line>
+                    </svg>
+                  </button>
                 </div>
               </div>
               <span class="step-badge step-badge-green">
@@ -683,10 +892,43 @@
     </div>
   </div>
 
-  <!-- MODAL: Auth (Registro fiscal & Login) -->
-  <div id="modal-auth" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Acceso a GESTARIAN">
+  <!-- MODAL: Visor Universal de Documentos Minimalistas (Estilo Gestarian Quick) -->
+  <div id="modal-doc-minimalista" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Visor Documental Minimalista" onclick="if(event.target===this)closeModal('modal-doc-minimalista')">
+    <div class="modal-container doc-minimalista-container" id="doc-minimalista-wrapper">
+      <div id="doc-minimalista-content">
+        <!-- Renderizado dinámico desde app.js -->
+      </div>
+      <!-- Barra flotante de iconos en el pié del documento -->
+      <div class="floating-doc-action-bar" id="doc-floating-dock">
+        <button type="button" class="floating-icon-btn" onclick="window.print()" title="Imprimir / Exportar PDF">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+        </button>
+        <button type="button" class="floating-icon-btn floating-btn-wa" onclick="shareDocViaWhatsApp()" title="Enviar por WhatsApp">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+        </button>
+        <button type="button" class="floating-icon-btn floating-btn-mail" onclick="shareDocViaEmail()" title="Enviar por Email">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+        </button>
+        <button type="button" class="floating-icon-btn floating-btn-dl" onclick="downloadDocData()" title="Descargar Fichero">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        </button>
+        <div class="dock-divider"></div>
+        <button type="button" class="floating-icon-btn floating-btn-close" onclick="closeModal('modal-doc-minimalista')" title="Cerrar Documento">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Auth (Acceso a Gestrian: Registro fiscal & Login) -->
+  <div id="modal-auth" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Acceso a Gestrian">
     <div class="modal-container">
       <button class="modal-close" id="auth-close" onclick="closeModal('modal-auth')" aria-label="Cerrar">&times;</button>
+
+      <div style="text-align:center;margin-bottom:1.4rem">
+        <h2 style="font-size:1.6rem;font-weight:800;font-family:'Outfit',sans-serif;color:#fff;margin:0 0 4px 0">Acceso a Gestrian</h2>
+        <p style="font-size:0.85rem;color:var(--text-muted);margin:0">Gestión documental automatizada con IA para tu negocio</p>
+      </div>
 
       <div class="auth-tabs">
         <button id="tab-register" class="auth-tab active" onclick="switchAuthTab('register')">Registro Fiscal</button>
@@ -732,13 +974,28 @@
       </form>
 
       <form id="form-login" style="display:none" onsubmit="handleLoginSubmit(event)">
+        <div style="display:flex;gap:0.75rem;margin-bottom:1rem;background:rgba(255,255,255,0.03);padding:0.4rem;border-radius:10px;border:1px solid rgba(255,255,255,0.08)">
+          <label style="flex:1;text-align:center;font-size:0.8rem;padding:0.4rem;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.4rem;color:#fff;">
+            <input type="radio" name="login_type" id="login-is-taller" value="taller" checked onchange="document.getElementById('lbl-login-pass').textContent='Contraseña *';document.getElementById('login-password').placeholder='Tu contraseña';document.getElementById('login-is-cliente').checked=false" style="accent-color:#a855f7;">
+            <span>💼 Taller / Admin</span>
+          </label>
+          <label style="flex:1;text-align:center;font-size:0.8rem;padding:0.4rem;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.4rem;color:#c4b5fd;">
+            <input type="radio" name="login_type" id="login-is-cliente-radio" value="cliente" onchange="document.getElementById('lbl-login-pass').textContent='DNI / CIF del Cliente *';document.getElementById('login-password').placeholder='Ej: A87654321 / 12345678Z';document.getElementById('login-is-cliente').checked=true" style="accent-color:#a855f7;">
+            <span>👤 Cliente (Email + DNI)</span>
+          </label>
+          <input type="checkbox" id="login-is-cliente" style="display:none">
+        </div>
+
         <div class="form-group">
           <label for="login-email">Email Registrado *</label>
-          <input type="email" id="login-email" class="form-control" placeholder="contacto@empresa.com" required>
+          <input type="email" id="login-email" class="form-control" placeholder="tu-email@ejemplo.com" required>
         </div>
         <div class="form-group">
-          <label for="login-password">Contraseña *</label>
-          <input type="password" id="login-password" class="form-control" placeholder="Tu contraseña" required>
+          <label for="login-password" id="lbl-login-pass">Contraseña o DNI/CIF *</label>
+          <input type="password" id="login-password" class="form-control" placeholder="Tu contraseña o DNI/CIF" required>
+          <small style="color:var(--text-muted);font-size:0.75rem;display:block;margin-top:0.25rem;">
+            * Los clientes acceden introduciendo su Email y su DNI/CIF en PRO y ENTERPRISE.
+          </small>
         </div>
         <button type="submit" id="btn-submit-login" class="btn btn-primary btn-submit"><span>Iniciar Sesión y Entrar</span></button>
       </form>
