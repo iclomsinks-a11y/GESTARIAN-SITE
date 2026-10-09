@@ -41,6 +41,17 @@ import { EmpleadoAutorizadoUsuario, EMPLEADOS_AUTORIZADOS_MOCK, darDeAltaEmplead
 import { calcularBalanceYCuentaResultados, CuentaResultadosPeriodo } from './modules/balances/engine';
 import { DemandaOfertaEmpresarial, DEMANDAS_RED_EMPRESARIAL_MOCK } from './modules/red_empresarial/mockData';
 
+// Informes y Enlaces a Asesorías / Gestorías (A3, Sage, XLS, CSV) y OCR
+import {
+  calcularResumenTrimestral,
+  generarEnlaceA3,
+  generarEnlaceSage,
+  generarEnlaceXLS,
+  generarEnlaceCSV,
+  descargarFicheroEnNavegador
+} from './modules/fiscal/exportGestoria';
+import { ModalOCRFactura } from './components/ModalOCRFactura';
+
 // Datos iniciales de facturas con numeración estándar oficial
 const FACTURAS_EMITIDAS_MOCK: FacturaOperacion[] = [
   {
@@ -419,6 +430,14 @@ export default function SuiteApp() {
   const [facturasRecibidas, setFacturasRecibidas] = useState<FacturaOperacion[]>(FACTURAS_RECIBIDAS_MOCK);
   const [presupuestos] = useState<PresupuestoOperacion[]>(PRESUPUESTOS_MOCK);
 
+  // Estados de Personalización de Planes (Quick Extras, Interempresas 5%, PWA)
+  const [retencionAniosQuick, setRetencionAniosQuick] = useState<1 | 4 | 8>(1);
+  const [scannerEmailQuickActivo, setScannerEmailQuickActivo] = useState<boolean>(false);
+  const [isModalOCROpen, setIsModalOCROpen] = useState<boolean>(false);
+  const [comisionDesvioPorcentaje] = useState<number>(5);
+  const [desviosFinalizadosIds, setDesviosFinalizadosIds] = useState<string[]>(['DEM-RED-002']);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
   // Módulos Laborales y de Activos
   const [empleados, setEmpleados] = useState<Empleado[]>(EMPLEADOS_MOCK);
   const [activos, setActivos] = useState<ActivoPropiedad[]>(ACTIVOS_PROPIEDAD_MOCK);
@@ -575,7 +594,7 @@ export default function SuiteApp() {
   const [isEscaneandoCorreo, setIsEscaneandoCorreo] = useState<boolean>(false);
 
   // Datos para Envío a la Gestoría (Manual, Preprogramados, Control Horario)
-  const [subtabNomina, setSubtabNomina] = useState<'general' | 'scanner' | 'gestoria' | 'fichajes' | 'empleados'>('general');
+  const [subtabNomina, setSubtabNomina] = useState<'general' | 'scanner' | 'gestoria' | 'fichajes' | 'empleados'>('empleados');
   const [datosEnvioGestoria, setDatosEnvioGestoria] = useState<{
     modo: 'MANUAL' | 'PREPROGRAMADO' | 'HORAS_CONTROL';
     horasExtras: number;
@@ -676,6 +695,26 @@ export default function SuiteApp() {
   useEffect(() => {
     const syncHash = () => {
       const hash = window.location.hash.replace('#', '').toLowerCase();
+      if (hash === 'lite') {
+        setActivePlan('LITE');
+        setActiveTab('emitidas');
+        return;
+      }
+      if (hash === 'quick') {
+        setActivePlan('QUICK');
+        setActiveTab('clientes');
+        return;
+      }
+      if (hash === 'pro') {
+        setActivePlan('PRO');
+        setActiveTab('clientes');
+        return;
+      }
+      if (hash === 'enterprise') {
+        setActivePlan('ENTERPRISE');
+        setActiveTab('clientes');
+        return;
+      }
       const validTabs: TabKey[] = ['clientes', 'cobros', 'emitidas', 'recibidas', 'presupuestos', 'nominas', 'activos', 'balances', 'metis', 'aeat', 'red_empresarial', 'config'];
       if (validTabs.includes(hash as TabKey)) {
         setActiveTab(hash as TabKey);
@@ -683,6 +722,12 @@ export default function SuiteApp() {
     };
     syncHash();
     window.addEventListener('hashchange', syncHash);
+
+    const handleBeforeInstall = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
 
     const handleAuthChange = (e: any) => {
       const u = e.detail;
@@ -702,6 +747,7 @@ export default function SuiteApp() {
     window.addEventListener('gestarian-auth-change', handleAuthChange);
     return () => {
       window.removeEventListener('hashchange', syncHash);
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
       window.removeEventListener('gestarian-auth-change', handleAuthChange);
     };
   }, []);
@@ -710,6 +756,72 @@ export default function SuiteApp() {
   const showNotice = (msg: string) => {
     setNotificacion(msg);
     setTimeout(() => setNotificacion(null), 4500);
+  };
+
+  // Helper de control de permisos por Plan
+  const isTabAllowedForPlan = (tab: TabKey, plan: PlanVersion): boolean => {
+    if (plan === 'LITE') {
+      return tab === 'presupuestos' || tab === 'emitidas' || tab === 'config';
+    }
+    if (plan === 'QUICK') {
+      return ['clientes', 'cobros', 'emitidas', 'recibidas', 'presupuestos', 'config'].includes(tab);
+    }
+    if (plan === 'PRO') {
+      return ['clientes', 'cobros', 'emitidas', 'recibidas', 'presupuestos', 'nominas', 'activos', 'balances', 'metis', 'config'].includes(tab);
+    }
+    return true; // ENTERPRISE tiene acceso completo
+  };
+
+  const switchPlan = (plan: PlanVersion) => {
+    setActivePlan(plan);
+    if (plan === 'LITE' && (activeTab !== 'emitidas' && activeTab !== 'presupuestos' && activeTab !== 'config')) {
+      setActiveTab('emitidas');
+    } else if (plan === 'QUICK' && ['nominas', 'activos', 'balances', 'aeat', 'red_empresarial'].includes(activeTab)) {
+      setActiveTab('clientes');
+    } else if (plan === 'PRO' && ['aeat', 'red_empresarial'].includes(activeTab)) {
+      setActiveTab('clientes');
+    }
+    showNotice(`Plan comercial activo: GESTARIAN ${plan}`);
+  };
+
+  // Acciones para Plan LITE (Guardado en dispositivo local, imprimir y email)
+  const handleGuardarFacturaLocal = (f: FacturaOperacion) => {
+    const jsonStr = JSON.stringify(f, null, 2);
+    descargarFicheroEnNavegador(jsonStr, `factura_${f.factura_id}_dispositivo_local.json`, 'application/json');
+    showNotice(`💾 Factura ${f.factura_id} guardada con éxito en tu dispositivo local.`);
+  };
+
+  const handleEnviarEmailFacturaLite = (f: FacturaOperacion) => {
+    showNotice(`✉️ Factura ${f.factura_id} preparada y enviada por correo electrónico.`);
+  };
+
+  // Conmutador de Control Horario por Empleado
+  const handleToggleControlHorarioEmpleado = (empId: string) => {
+    setEmpleados(prev => prev.map(e => {
+      if (e.id === empId) {
+        const nuevoEstado = !e.controlHorarioActivo;
+        showNotice(`Control horario de ${e.nombre} ${e.apellidos}: ${nuevoEstado ? 'ACTIVADO (160h completa / 80h media jornada)' : 'DESACTIVADO'}`);
+        return { ...e, controlHorarioActivo: nuevoEstado };
+      }
+      return e;
+    }));
+  };
+
+  // Desvío y Red B2B Interempresas (5% de comisión por defecto para desvíos finalizados)
+  const handleFinalizarDesvioInterempresas = (demId: string, titulo: string) => {
+    if (desviosFinalizadosIds.includes(demId)) return;
+    setDesviosFinalizadosIds(prev => [...prev, demId]);
+    showNotice(`🤝 Desvío "${titulo}" marcado como finalizado con éxito. Comisión del 5% devengada automáticamente.`);
+  };
+
+  // Instalación de App Local (PWA)
+  const handleInstalarPWA = () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(() => setDeferredPrompt(null));
+    } else {
+      showNotice('📲 Puedes instalar Gestarian desde el icono de instalación de la barra de tu navegador o menú "Añadir a pantalla de inicio / Instalar aplicación".');
+    }
   };
 
   // Cálculos reactivos de nóminas y modelos
@@ -741,6 +853,31 @@ export default function SuiteApp() {
   const borrador180 = useMemo(() => {
     return generarBorradorModelo180(2026, inmuebles);
   }, [inmuebles]);
+
+  // Resumen Trimestral y Generación de Archivos para Asesorías (A3, Sage, XLS, CSV)
+  const resumenTrimestralGestoria = useMemo(() => {
+    return calcularResumenTrimestral(2026, '4T', facturasEmitidas, facturasRecibidas, nominasCalculadas);
+  }, [facturasEmitidas, facturasRecibidas, nominasCalculadas]);
+
+  const handleDescargarArchivoGestoria = (formato: 'A3' | 'SAGE' | 'XLS' | 'CSV') => {
+    if (formato === 'A3') {
+      const contenido = generarEnlaceA3(facturasEmitidas, facturasRecibidas, nominasCalculadas);
+      descargarFicheroEnNavegador(contenido, `enlace_contable_A3CON_4T2026.a3`, 'text/plain');
+      showNotice('📥 Archivo de enlace contable A3CON generado y descargado para la gestoría.');
+    } else if (formato === 'SAGE') {
+      const contenido = generarEnlaceSage(facturasEmitidas, facturasRecibidas, nominasCalculadas);
+      descargarFicheroEnNavegador(contenido, `enlace_contable_SAGE_4T2026.txt`, 'text/plain');
+      showNotice('📥 Archivo de enlace contable Sage 50 / ContaPlus descargado.');
+    } else if (formato === 'XLS') {
+      const contenido = generarEnlaceXLS(facturasEmitidas, facturasRecibidas, nominasCalculadas, resumenTrimestralGestoria);
+      descargarFicheroEnNavegador(contenido, `informe_gestoria_libros_4T2026.xls`, 'application/vnd.ms-excel');
+      showNotice('📥 Hoja Excel estructurada con libros contables descargada.');
+    } else if (formato === 'CSV') {
+      const contenido = generarEnlaceCSV(facturasEmitidas, facturasRecibidas, nominasCalculadas, resumenTrimestralGestoria);
+      descargarFicheroEnNavegador(contenido, `asientos_facturas_4T2026.csv`, 'text/csv');
+      showNotice('📥 Fichero CSV estándar delimitado descargado.');
+    }
+  };
 
   const alertasMetis = useMemo(() => {
     return generarAlertasMetis({
@@ -929,6 +1066,14 @@ export default function SuiteApp() {
       email: formAltaEmpleado.email,
       grupoCotizacion: formAltaEmpleado.grupoCotizacion,
       puesto: formAltaEmpleado.rol === 'JEFE_TALLER' ? 'Jefe de Taller' : formAltaEmpleado.rol === 'ADMINISTRATIVO' ? 'Oficial Administrativo' : 'Mecánico / Operario',
+      epigrafeActividad: 'Epígrafe 691.2 - Reparación y Mantenimiento',
+      rolPlataforma: formAltaEmpleado.rol === 'ADMINISTRATIVO' ? 'CONTABLE' : formAltaEmpleado.rol === 'JEFE_TALLER' ? 'RESPONSABLE' : 'EMPLEADO',
+      permisos: ['CONSULTA_EXPEDIENTES', 'REGISTRO_HORAS'],
+      jornada: 'COMPLETA',
+      horasMensuales: 160,
+      controlHorarioActivo: true,
+      telefono: formAltaEmpleado.telefono,
+      direccion: 'Sede Central',
       cnaeEmpresa: '4520 - Mantenimiento y reparación de vehículos de motor',
       convenioColectivo: 'Convenio Provincial del Metal y Talleres de Reparación',
       tipoContrato: 'INDEFINIDO',
@@ -1108,16 +1253,10 @@ export default function SuiteApp() {
             return (
               <button
                 key={plan}
-                onClick={() => {
-                  setActivePlan(plan);
-                  if (plan === 'LITE' && (activeTab === 'aeat' || activeTab === 'presupuestos' || activeTab === 'nominas' || activeTab === 'activos')) {
-                    setActiveTab('cobros');
-                  }
-                  showNotice(`Plan comercial activo: GESTARIAN ${plan}`);
-                }}
+                onClick={() => switchPlan(plan)}
                 className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
                   isActive
-                    ? 'bg-gradient-to-r from-[#a855f7] to-[#6366f1] text-white shadow-md'
+                    ? 'bg-gradient-to-r from-[#a855f7] to-[#6366f1] text-white shadow-md font-bold'
                     : 'text-white/60 hover:text-white hover:bg-white/5'
                 }`}
               >
@@ -1127,8 +1266,17 @@ export default function SuiteApp() {
           })}
         </div>
 
-        {/* Estado de Sesión / Botón Acceso Cliente */}
+        {/* Estado de Sesión / Botón Acceso Cliente / Botón PWA */}
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleInstalarPWA}
+            className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-purple-500/15 border border-purple-500/30 text-purple-300 hover:bg-purple-500/25 transition-all flex items-center gap-1"
+            title="Instalar Gestarian como aplicación de escritorio o móvil"
+          >
+            <span>📲 Instalar App Local</span>
+          </button>
+
           {clientSession ? (
             <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 rounded-xl text-xs">
               <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
@@ -1146,7 +1294,7 @@ export default function SuiteApp() {
               onClick={() => setIsClientLoginOpen(true)}
               className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 transition-all flex items-center gap-1.5"
             >
-              <span>👤 Acceso Cliente (Email + DNI)</span>
+              <span>👤 Acceso Cliente</span>
             </button>
           )}
 
@@ -1159,26 +1307,118 @@ export default function SuiteApp() {
         </div>
       </header>
 
+      {/* Banner Informativo del Plan Activo y sus Capacidades */}
+      <div className="max-w-7xl mx-auto px-4 md:px-8 mt-3">
+        {activePlan === 'LITE' && (
+          <div className="bg-sky-500/10 border border-sky-500/30 rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="text-base">🪐</span>
+              <span className="font-bold text-sky-300">GESTARIAN LITE:</span>
+              <span className="text-white/80">Presupuestos y Facturas emitidas directas sin base de datos compleja. Guardado en dispositivo local, impresión y envío por email.</span>
+            </div>
+            <button
+              onClick={() => switchPlan('QUICK')}
+              className="text-[11px] font-bold text-sky-200 hover:text-white underline"
+            >
+              Pasar a Quick →
+            </button>
+          </div>
+        )}
+
+        {activePlan === 'QUICK' && (
+          <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-base">🚀</span>
+              <span className="font-bold text-purple-300">GESTARIAN QUICK:</span>
+              <span className="text-white/80">Base de datos de Clientes, Proveedores y Recibos. Facturas guardadas 1 año incluido.</span>
+              <span className="text-white/40">|</span>
+              <span className="text-white/60">Extras:</span>
+              <button
+                onClick={() => setRetencionAniosQuick(prev => prev === 1 ? 4 : prev === 4 ? 8 : 1)}
+                className="bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded text-[11px] text-[#f5c451] font-mono border border-white/10"
+                title="Cambiar periodo de retención legal de facturas"
+              >
+                Guardado: {retencionAniosQuick} {retencionAniosQuick === 1 ? 'año' : 'años'} {retencionAniosQuick === 4 ? '(+10€/año)' : retencionAniosQuick === 8 ? '(+15€/año)' : '(Incluido)'}
+              </button>
+              <button
+                onClick={() => {
+                  setScannerEmailQuickActivo(!scannerEmailQuickActivo);
+                  showNotice(`Rastreo de emails de facturas y recibos (+19€/año): ${!scannerEmailQuickActivo ? 'ACTIVADO' : 'DESACTIVADO'}`);
+                }}
+                className={`px-2 py-0.5 rounded text-[11px] font-mono border transition-all ${
+                  scannerEmailQuickActivo ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-white/5 text-white/50 border-white/10'
+                }`}
+              >
+                📧 Escáner Email Recibos (+19€/año): {scannerEmailQuickActivo ? 'ON' : 'OFF'}
+              </button>
+            </div>
+            <button
+              onClick={() => setIsModalOCROpen(true)}
+              className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-3 py-1 rounded-lg text-xs transition-all shadow"
+            >
+              📸 OCR Factura Física
+            </button>
+          </div>
+        )}
+
+        {activePlan === 'PRO' && (
+          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="text-base">⭐</span>
+              <span className="font-bold text-emerald-300">GESTARIAN PRO:</span>
+              <span className="text-white/80">Ficha de Empleados & Nóminas (Control horario 160h/80h) · Informes trimestrales para gestoría (IVA y Modelos 303, 111, 115) · Enlace contable A3, SAGE, XLS y CSV.</span>
+            </div>
+            <button
+              onClick={() => switchPlan('ENTERPRISE')}
+              className="text-[11px] font-bold text-amber-300 hover:text-white underline"
+            >
+              Pasar a Enterprise →
+            </button>
+          </div>
+        )}
+
+        {activePlan === 'ENTERPRISE' && (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="text-base">👑</span>
+              <span className="font-bold text-amber-300">GESTARIAN ENTERPRISE:</span>
+              <span className="text-white/80">Conexión telemática directa Sede AEAT (Certificado Digital Forge) + Red B2B Interempresas (Reparto colaborativo con comisión del 5% por defecto).</span>
+            </div>
+            <span className="text-[11px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-mono font-bold">
+              5% Comisión Desvíos
+            </span>
+          </div>
+        )}
+      </div>
+
       {/* Navegación por Pestañas Minimalistas */}
       <nav className="max-w-7xl mx-auto px-4 md:px-8 mt-5">
         <div className="flex items-center gap-1.5 overflow-x-auto border-b border-white/10 pb-3 no-scrollbar text-xs md:text-sm">
-          <button
-            onClick={() => setActiveTab('clientes')}
-            className={`px-3.5 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
-              activeTab === 'clientes' ? 'bg-gradient-to-r from-[#a855f7]/30 to-[#6366f1]/30 text-white border border-[#a855f7]/50 shadow-sm' : 'text-white/60 hover:text-white'
-            }`}
-          >
-            <span>👥 Clientes</span>
-            <span className="text-[10px] bg-white/10 px-1.5 py-0.2 rounded-full font-mono">{clientes.length}</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('cobros')}
-            className={`px-3.5 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
-              activeTab === 'cobros' ? 'bg-white/10 text-white border border-white/15' : 'text-white/60 hover:text-white'
-            }`}
-          >
-            Panel de Cobros
-          </button>
+          {/* Pestañas permitidas en QUICK, PRO y ENTERPRISE */}
+          {activePlan !== 'LITE' && (
+            <button
+              onClick={() => setActiveTab('clientes')}
+              className={`px-3.5 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                activeTab === 'clientes' ? 'bg-gradient-to-r from-[#a855f7]/30 to-[#6366f1]/30 text-white border border-[#a855f7]/50 shadow-sm' : 'text-white/60 hover:text-white'
+              }`}
+            >
+              <span>👥 Clientes</span>
+              <span className="text-[10px] bg-white/10 px-1.5 py-0.2 rounded-full font-mono">{clientes.length}</span>
+            </button>
+          )}
+
+          {activePlan !== 'LITE' && (
+            <button
+              onClick={() => setActiveTab('cobros')}
+              className={`px-3.5 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
+                activeTab === 'cobros' ? 'bg-white/10 text-white border border-white/15' : 'text-white/60 hover:text-white'
+              }`}
+            >
+              Panel de Cobros
+            </button>
+          )}
+
+          {/* Facturas Emitidas: En todos los planes */}
           <button
             onClick={() => setActiveTab('emitidas')}
             className={`px-3.5 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
@@ -1187,35 +1427,44 @@ export default function SuiteApp() {
           >
             Facturas Emitidas
           </button>
+
+          {/* Facturas Recibidas: En QUICK, PRO y ENTERPRISE */}
+          {activePlan !== 'LITE' && (
+            <button
+              onClick={() => setActiveTab('recibidas')}
+              className={`px-3.5 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
+                activeTab === 'recibidas' ? 'bg-white/10 text-white border border-white/15' : 'text-white/60 hover:text-white'
+              }`}
+            >
+              Facturas Recibidas
+            </button>
+          )}
+
+          {/* Presupuestos y Recepción: En TODOS los planes (LITE, QUICK, PRO, ENTERPRISE) */}
           <button
-            onClick={() => setActiveTab('recibidas')}
+            onClick={() => setActiveTab('presupuestos')}
             className={`px-3.5 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
-              activeTab === 'recibidas' ? 'bg-white/10 text-white border border-white/15' : 'text-white/60 hover:text-white'
+              activeTab === 'presupuestos' ? 'bg-white/10 text-white border border-white/15' : 'text-white/60 hover:text-white'
             }`}
           >
-            Facturas Recibidas
+            Presupuestos
           </button>
-          {activePlan !== 'LITE' && activePlan !== 'QUICK' && (
-            <button
-              onClick={() => setActiveTab('presupuestos')}
-              className={`px-3.5 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
-                activeTab === 'presupuestos' ? 'bg-white/10 text-white border border-white/15' : 'text-white/60 hover:text-white'
-              }`}
-            >
-              Presupuestos y Recepción
-            </button>
-          )}
-          {activePlan !== 'LITE' && activePlan !== 'QUICK' && (
+
+          {/* Módulo Laboral & Empleados: Exclusivo de PRO y ENTERPRISE */}
+          {(activePlan === 'PRO' || activePlan === 'ENTERPRISE') && (
             <button
               onClick={() => setActiveTab('nominas')}
-              className={`px-3.5 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
-                activeTab === 'nominas' ? 'bg-white/10 text-white border border-white/15' : 'text-white/60 hover:text-white'
+              className={`px-3.5 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                activeTab === 'nominas' ? 'bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-300 border border-emerald-500/40' : 'text-white/60 hover:text-white'
               }`}
             >
-              Nóminas & Personal (TGSS)
+              <span>👥 Empleados & Nóminas</span>
+              <span className="text-[10px] bg-emerald-500/20 px-1.5 py-0.2 rounded-full font-mono text-emerald-300">{empleados.length}</span>
             </button>
           )}
-          {activePlan !== 'LITE' && activePlan !== 'QUICK' && (
+
+          {/* Activos y Alquileres: Exclusivo de PRO y ENTERPRISE */}
+          {(activePlan === 'PRO' || activePlan === 'ENTERPRISE') && (
             <button
               onClick={() => setActiveTab('activos')}
               className={`px-3.5 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
@@ -1225,47 +1474,62 @@ export default function SuiteApp() {
               Activos & Alquileres (19%)
             </button>
           )}
-          {activePlan !== 'LITE' && activePlan !== 'QUICK' && (
+
+          {/* Balances e Informes a Gestoría (A3, Sage, XLS, CSV): Exclusivo de PRO y ENTERPRISE */}
+          {(activePlan === 'PRO' || activePlan === 'ENTERPRISE') && (
             <button
               onClick={() => setActiveTab('balances')}
               className={`px-3.5 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
                 activeTab === 'balances' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'text-white/60 hover:text-white'
               }`}
             >
-              <span>📊 Balances Financieros</span>
+              <span>📊 Balances & Gestoría</span>
             </button>
           )}
-          <button
-            onClick={() => setActiveTab('metis')}
-            className={`px-3.5 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
-              activeTab === 'metis' ? 'bg-[#a855f7]/20 text-[#d8b4fe] border border-[#a855f7]/40' : 'text-white/60 hover:text-white'
-            }`}
-          >
-            <span>Alertas Metis</span>
-            <span className="w-2 h-2 rounded-full bg-[#f5c451]"></span>
-          </button>
-          <button
-            onClick={() => setActiveTab('aeat')}
-            className={`px-3.5 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
-              activeTab === 'aeat' ? 'bg-[#6366f1]/20 text-[#c4b5fd] border border-[#6366f1]/40' : 'text-white/60 hover:text-white'
-            }`}
-          >
-            <span>🏛️ Sede AEAT</span>
-            {activePlan !== 'ENTERPRISE' && (
-              <span className="text-[10px] bg-white/10 px-1.5 py-0.2 rounded text-white/60">🔒 Enterprise</span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('red_empresarial')}
-            className={`px-3.5 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
-              activeTab === 'red_empresarial' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'text-white/60 hover:text-white'
-            }`}
-          >
-            <span>🤝 Red B2B</span>
-            {activePlan !== 'ENTERPRISE' && (
-              <span className="text-[10px] bg-white/10 px-1.5 py-0.2 rounded text-white/60">🔒 Enterprise</span>
-            )}
-          </button>
+
+          {/* Metis: En PRO y ENTERPRISE */}
+          {(activePlan === 'PRO' || activePlan === 'ENTERPRISE') && (
+            <button
+              onClick={() => setActiveTab('metis')}
+              className={`px-3.5 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                activeTab === 'metis' ? 'bg-[#a855f7]/20 text-[#d8b4fe] border border-[#a855f7]/40' : 'text-white/60 hover:text-white'
+              }`}
+            >
+              <span>Alertas Metis</span>
+              <span className="w-2 h-2 rounded-full bg-[#f5c451]"></span>
+            </button>
+          )}
+
+          {/* AEAT: Disponible en Enterprise (y visible con candado en Pro) */}
+          {(activePlan === 'ENTERPRISE' || activePlan === 'PRO') && (
+            <button
+              onClick={() => setActiveTab('aeat')}
+              className={`px-3.5 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                activeTab === 'aeat' ? 'bg-[#6366f1]/20 text-[#c4b5fd] border border-[#6366f1]/40' : 'text-white/60 hover:text-white'
+              }`}
+            >
+              <span>🏛️ Sede AEAT</span>
+              {activePlan !== 'ENTERPRISE' && (
+                <span className="text-[10px] bg-white/10 px-1.5 py-0.2 rounded text-white/60">🔒 Enterprise</span>
+              )}
+            </button>
+          )}
+
+          {/* Red B2B Interempresas: Disponible en Enterprise (y visible con candado en Pro) */}
+          {(activePlan === 'ENTERPRISE' || activePlan === 'PRO') && (
+            <button
+              onClick={() => setActiveTab('red_empresarial')}
+              className={`px-3.5 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                activeTab === 'red_empresarial' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'text-white/60 hover:text-white'
+              }`}
+            >
+              <span>🤝 Red B2B (5%)</span>
+              {activePlan !== 'ENTERPRISE' && (
+                <span className="text-[10px] bg-white/10 px-1.5 py-0.2 rounded text-white/60">🔒 Enterprise</span>
+              )}
+            </button>
+          )}
+
           <button
             onClick={() => setActiveTab('config')}
             className={`px-3.5 py-1.5 rounded-lg font-medium whitespace-nowrap transition-all ${
@@ -1998,12 +2262,38 @@ export default function SuiteApp() {
         {/* TAB 2: FACTURAS EMITIDAS */}
         {activeTab === 'emitidas' && (
           <section className="space-y-4">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h1 className="text-xl md:text-2xl font-bold font-['Outfit']">Facturas Emitidas</h1>
                 <p className="text-xs md:text-sm text-white/60">
-                  Facturas Ordinarias, de Anticipo y Rectificativas oficiales (BOE Real Decreto 1619/2012). Formato minimalista unificado con icono flotante.
+                  Facturas Ordinarias, de Anticipo y Rectificativas oficiales (BOE Real Decreto 1619/2012).
                 </p>
+              </div>
+
+              {/* Botones LITE / Guardado Local, Imprimir y Email */}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleGuardarFacturaLocal(facturasEmitidas[0])}
+                  className="bg-white/10 hover:bg-white/20 text-white font-medium text-xs px-3 py-1.5 rounded-xl border border-white/15 transition-all flex items-center gap-1.5"
+                  title="Guardar en dispositivo local (JSON)"
+                >
+                  <span>💾 Guardar Local</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => abrirFacturaMinimalista(facturasEmitidas[0])}
+                  className="bg-white/10 hover:bg-white/20 text-white font-medium text-xs px-3 py-1.5 rounded-xl border border-white/15 transition-all flex items-center gap-1.5"
+                >
+                  <span>🖨️ Imprimir / PDF</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleEnviarEmailFacturaLite(facturasEmitidas[0])}
+                  className="bg-purple-600 hover:bg-purple-500 text-white font-medium text-xs px-3 py-1.5 rounded-xl transition-all shadow-md flex items-center gap-1.5"
+                >
+                  <span>✉️ Enviar por Email</span>
+                </button>
               </div>
             </div>
 
@@ -2118,9 +2408,20 @@ export default function SuiteApp() {
         {/* TAB 3: FACTURAS RECIBIDAS */}
         {activeTab === 'recibidas' && (
           <section className="space-y-4">
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold font-['Outfit']">Facturas Recibidas</h1>
-              <p className="text-xs md:text-sm text-white/60">Gastos, proveedores y cuotas de IVA deducible para la AEAT.</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h1 className="text-xl md:text-2xl font-bold font-['Outfit']">Facturas Recibidas</h1>
+                <p className="text-xs md:text-sm text-white/60">Gastos, proveedores y cuotas de IVA deducible para la AEAT.</p>
+              </div>
+
+              {/* Botón OCR de Facturas Físicas por Foto */}
+              <button
+                type="button"
+                onClick={() => setIsModalOCROpen(true)}
+                className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-95 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all shadow-md flex items-center gap-2 self-start sm:self-auto"
+              >
+                <span>📸 Escanear Factura Física (OCR)</span>
+              </button>
             </div>
 
             <div className="overflow-x-auto bg-[#0e0c1d] border border-white/8 rounded-2xl">
@@ -2939,48 +3240,136 @@ export default function SuiteApp() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {empleadosAutorizados.map(usr => (
-                    <div key={usr.id} className="bg-white/[0.02] border border-white/8 rounded-xl p-4 text-xs space-y-3">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <div className="font-bold text-white text-sm">{usr.nombre}</div>
-                          <span className="text-[11px] px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 font-semibold border border-purple-500/30 mt-1 inline-block">
-                            {usr.rolAcceso}
+                  {empleados.map(emp => {
+                    const nom = nominasCalculadas.find(n => n.empleadoNif === emp.nif) || nominasCalculadas[0];
+                    return (
+                      <div key={emp.id} className="bg-white/[0.02] border border-white/8 hover:border-purple-500/30 rounded-2xl p-5 text-xs space-y-4 transition-all">
+                        {/* Cabecera del Empleado */}
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="font-bold text-white text-base">{emp.nombre} {emp.apellidos}</div>
+                            <div className="text-white/50 text-[11px] font-mono">NIF: {emp.nif} · ID: {emp.id}</div>
+                            <div className="text-emerald-400 font-semibold text-xs mt-0.5">{emp.puesto}</div>
+                          </div>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            emp.rolPlataforma === 'ADMINISTRADOR'
+                              ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                              : emp.rolPlataforma === 'RESPONSABLE'
+                              ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                              : emp.rolPlataforma === 'CONTABLE'
+                              ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                              : 'bg-white/10 text-white/70'
+                          }`}>
+                            {emp.rolPlataforma}
                           </span>
                         </div>
-                        <span className="text-[10px] text-white/40">Alta: {usr.fechaAlta}</span>
-                      </div>
 
-                      <div className="space-y-1 text-[11px] text-white/70">
-                        <div>📧 {usr.email}</div>
-                        <div>📱 {usr.telefono}</div>
-                      </div>
+                        {/* Puesto y Epígrafe según categoría de actividad */}
+                        <div className="bg-white/[0.03] p-3 rounded-xl border border-white/5 space-y-1.5 text-[11px]">
+                          <div>
+                            <span className="text-white/40 block text-[10px]">Puesto Específico:</span>
+                            <span className="text-white font-medium">{emp.puesto}</span>
+                          </div>
+                          <div>
+                            <span className="text-white/40 block text-[10px]">Epígrafe Actividad / Grupo Cotización:</span>
+                            <span className="text-purple-300 font-medium">{emp.epigrafeActividad}</span>
+                          </div>
+                          <div className="flex justify-between items-center pt-1 border-t border-white/5 text-[10px]">
+                            <span className="text-white/50">Convenio:</span>
+                            <span className="text-white/70 truncate max-w-[180px]">{emp.convenioColectivo}</span>
+                          </div>
+                        </div>
 
-                      <div className="bg-black/30 p-2.5 rounded-lg border border-white/5 space-y-1 text-[10px]">
-                        <span className="text-white/50 block font-semibold">Permisos Habilitados:</span>
-                        <div className="grid grid-cols-2 gap-1 text-white/80">
-                          <div>{usr.permisos.ficharJornada ? '✓ Fichar Jornada' : '✗ Fichaje'}</div>
-                          <div>{usr.permisos.verNominasPropias ? '✓ Nóminas (€)' : '✗ Nóminas'}</div>
-                          <div>{usr.permisos.verPartesTrabajo ? '✓ Partes Trabajo' : '✗ Partes'}</div>
-                          <div>{usr.permisos.accesoFacturacion ? '✓ Facturación' : '✗ Facturación'}</div>
+                        {/* Datos Retributivos / Salario */}
+                        <div className="bg-purple-950/20 p-3 rounded-xl border border-purple-500/20 space-y-1 text-[11px]">
+                          <div className="flex justify-between items-center">
+                            <span className="text-white/60">Salario Base Mensual:</span>
+                            <span className="font-mono text-white font-bold">{formatCurrency(emp.salarioBaseMensual)}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-white/60">Complementos Salariales:</span>
+                            <span className="font-mono text-white/80">+{formatCurrency(emp.complementosSalariales)}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-white/60">Retención IRPF a Cuenta:</span>
+                            <span className="font-mono text-amber-300">{emp.porcentajeIrpf}% ({formatCurrency((emp.salarioBaseMensual + emp.complementosSalariales) * (emp.porcentajeIrpf / 100))})</span>
+                          </div>
+                          <div className="flex justify-between items-center pt-1 border-t border-white/5 font-semibold text-xs text-emerald-400">
+                            <span>Sueldo Neto Líquido:</span>
+                            <span className="font-mono font-bold">{formatCurrency(nom.liquidoTotalAPercibir)}</span>
+                          </div>
+                        </div>
+
+                        {/* Control Horario Minimalista (160h Completa / 80h Media Jornada) */}
+                        <div className="bg-black/40 p-3.5 rounded-xl border border-white/8 space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm">⏱️</span>
+                              <div>
+                                <span className="font-semibold text-white text-[11px] block">Control Horario</span>
+                                <span className="text-[10px] text-white/40">
+                                  {emp.jornada === 'COMPLETA' ? 'Jornada Completa (160h pactadas)' : 'Media Jornada (80h pactadas)'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Casilla interactiva para activar o desactivar control horario */}
+                            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={emp.controlHorarioActivo}
+                                onChange={() => handleToggleControlHorarioEmpleado(emp.id)}
+                                className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-white/20 bg-white/10 cursor-pointer"
+                              />
+                              <span className={`text-[10px] font-bold ${emp.controlHorarioActivo ? 'text-emerald-400' : 'text-white/40'}`}>
+                                {emp.controlHorarioActivo ? 'Activo' : 'Inactivo'}
+                              </span>
+                            </label>
+                          </div>
+
+                          {emp.controlHorarioActivo && (
+                            <div className="space-y-1.5 pt-1">
+                              <div className="flex justify-between text-[11px]">
+                                <span className="text-white/60">Horas registradas este mes:</span>
+                                <span className="font-mono text-purple-300 font-bold">{emp.horasRegistradasMes || emp.horasMensuales}h / {emp.horasMensuales}h</span>
+                              </div>
+                              <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full bg-gradient-to-r from-purple-500 to-emerald-400"
+                                  style={{ width: `${Math.min(100, Math.round(((emp.horasRegistradasMes || emp.horasMensuales) / emp.horasMensuales) * 100))}%` }}
+                                ></div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Permisos en Plataforma */}
+                        <div className="space-y-1 text-[10px]">
+                          <span className="text-white/40 block font-semibold">Permisos asignados:</span>
+                          <div className="flex flex-wrap gap-1">
+                            {emp.permisos.map((p, idx) => (
+                              <span key={idx} className="bg-white/5 text-white/70 px-1.5 py-0.5 rounded border border-white/5">
+                                ✓ {p}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Botón Ver y Descargar Nómina Oficial */}
+                        <div className="flex items-center justify-between pt-2 border-t border-white/5 text-[11px]">
+                          <span className="text-white/40 truncate max-w-[130px]">📧 {emp.email}</span>
+                          <button
+                            type="button"
+                            onClick={() => setModalNominaActiva(nom)}
+                            className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                          >
+                            <span className="w-4 h-4 rounded-full bg-emerald-500/30 flex items-center justify-center text-[10px]">€</span>
+                            <span>Ver Nómina</span>
+                          </button>
                         </div>
                       </div>
-
-                      <div className="flex items-center justify-between pt-1 border-t border-white/5 text-[10px]">
-                        <span className="text-emerald-400 font-medium">✓ Enlace Email y WhatsApp Activo</span>
-                        <button
-                          onClick={() => {
-                            const emp = empleados.find(e => e.id === usr.empleadoId) || empleados[0];
-                            const nom = nominasCalculadas.find(n => n.empleadoNif === emp.nif) || nominasCalculadas[0];
-                            setModalNominaActiva(nom);
-                          }}
-                          className="text-[#c4b5fd] hover:text-white font-semibold underline"
-                        >
-                          Ver Nómina (€)
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -3784,6 +4173,132 @@ export default function SuiteApp() {
                 </div>
               </div>
             </div>
+
+            {/* SECCIÓN ESPECIAL PRO: GENERADOR DE INFORMES Y ARCHIVOS PARA GESTORÍA (A3, SAGE, XLS, CSV) */}
+            <div className="bg-[#0e0c1d] border border-emerald-500/30 rounded-2xl p-6 space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl">📁</span>
+                  <div>
+                    <h3 className="text-base font-bold text-white font-['Outfit']">
+                      Informes Trimestrales para Asesoría & Gestoría Contable
+                    </h3>
+                    <p className="text-xs text-white/60">
+                      Exportaciones oficiales normalizadas para importar directamente en A3 Software, Sage Despachos, Excel y CSV.
+                    </p>
+                  </div>
+                </div>
+                <span className="text-xs font-mono font-bold px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                  4º Trimestre 2026
+                </span>
+              </div>
+
+              {/* Resumen Fiscal Trimestral */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                <div className="bg-white/[0.03] p-3 rounded-xl border border-white/5 space-y-1">
+                  <span className="text-white/50 block">Ingresos Facturación (Base):</span>
+                  <span className="font-mono font-bold text-white text-sm">{formatCurrency(resumenTrimestralGestoria.totalIngresosBrutos)}</span>
+                  <span className="text-[10px] text-emerald-400 block">+ IVA Rep: {formatCurrency(resumenTrimestralGestoria.totalIvaRepercutido)}</span>
+                </div>
+                <div className="bg-white/[0.03] p-3 rounded-xl border border-white/5 space-y-1">
+                  <span className="text-white/50 block">Gastos Proveedores (Base):</span>
+                  <span className="font-mono font-bold text-white text-sm">{formatCurrency(resumenTrimestralGestoria.totalGastosBrutos)}</span>
+                  <span className="text-[10px] text-rose-300 block">- IVA Sop: {formatCurrency(resumenTrimestralGestoria.totalIvaSoportado)}</span>
+                </div>
+                <div className="bg-white/[0.03] p-3 rounded-xl border border-white/5 space-y-1">
+                  <span className="text-white/50 block">Liquidación IVA (Mod. 303):</span>
+                  <span className="font-mono font-bold text-purple-300 text-sm">{formatCurrency(resumenTrimestralGestoria.resultadoIva)}</span>
+                  <span className="text-[10px] text-white/50 block">{resumenTrimestralGestoria.resultadoIva >= 0 ? 'A ingresar' : 'A compensar'}</span>
+                </div>
+                <div className="bg-white/[0.03] p-3 rounded-xl border border-white/5 space-y-1">
+                  <span className="text-white/50 block">Retenciones IRPF (Mod. 111):</span>
+                  <span className="font-mono font-bold text-rose-400 text-sm">{formatCurrency(resumenTrimestralGestoria.totalRetencionesIrpf)}</span>
+                  <span className="text-[10px] text-white/50 block">Personal nóminas</span>
+                </div>
+              </div>
+
+              {/* Modelos Oficiales Cumplimentados */}
+              <div className="bg-black/30 p-4 rounded-xl border border-white/5 space-y-2.5">
+                <span className="text-xs font-semibold text-white/80 block">Modelos Tributarios Cumplimentados:</span>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setModalModeloActivo('303')}
+                    className="bg-white/10 hover:bg-white/20 text-white text-xs px-3 py-1.5 rounded-lg border border-white/10 transition-all flex items-center gap-1.5"
+                  >
+                    <span>📄 Ver Modelo 303 (IVA Trimestral)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalModeloActivo('111')}
+                    className="bg-white/10 hover:bg-white/20 text-white text-xs px-3 py-1.5 rounded-lg border border-white/10 transition-all flex items-center gap-1.5"
+                  >
+                    <span>📄 Ver Modelo 111 (Retenciones Nóminas)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setModalModeloActivo('115')}
+                    className="bg-white/10 hover:bg-white/20 text-white text-xs px-3 py-1.5 rounded-lg border border-white/10 transition-all flex items-center gap-1.5"
+                  >
+                    <span>📄 Ver Modelo 115 (Retenciones 19% Alquiler)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Descarga en 4 Formatos Contables para Asesorías */}
+              <div className="space-y-2">
+                <span className="text-xs font-semibold text-white/80 block">Descargar Archivos Oficiales para el Software de la Gestoría:</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleDescargarArchivoGestoria('A3')}
+                    className="p-3 bg-white/5 hover:bg-emerald-500/20 border border-white/10 hover:border-emerald-500/40 rounded-xl transition-all text-left group"
+                  >
+                    <div className="font-bold text-white group-hover:text-emerald-300 flex items-center justify-between text-xs">
+                      <span>📥 Formato A3</span>
+                      <span className="text-[10px] font-mono bg-white/10 px-1 rounded">.A3</span>
+                    </div>
+                    <p className="text-[10px] text-white/50 mt-1">Enlace contable asientos para A3 Software / A3CON / Wolters Kluwer</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDescargarArchivoGestoria('SAGE')}
+                    className="p-3 bg-white/5 hover:bg-emerald-500/20 border border-white/10 hover:border-emerald-500/40 rounded-xl transition-all text-left group"
+                  >
+                    <div className="font-bold text-white group-hover:text-emerald-300 flex items-center justify-between text-xs">
+                      <span>📥 Formato SAGE</span>
+                      <span className="text-[10px] font-mono bg-white/10 px-1 rounded">.TXT</span>
+                    </div>
+                    <p className="text-[10px] text-white/50 mt-1">Compatible con Sage 50, Sage 200 y ContaPlus Despachos</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDescargarArchivoGestoria('XLS')}
+                    className="p-3 bg-white/5 hover:bg-emerald-500/20 border border-white/10 hover:border-emerald-500/40 rounded-xl transition-all text-left group"
+                  >
+                    <div className="font-bold text-white group-hover:text-emerald-300 flex items-center justify-between text-xs">
+                      <span>📥 Formato XLS</span>
+                      <span className="text-[10px] font-mono bg-white/10 px-1 rounded">.XLS</span>
+                    </div>
+                    <p className="text-[10px] text-white/50 mt-1">Libro de facturas y resumen en Excel estructurado</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDescargarArchivoGestoria('CSV')}
+                    className="p-3 bg-white/5 hover:bg-emerald-500/20 border border-white/10 hover:border-emerald-500/40 rounded-xl transition-all text-left group"
+                  >
+                    <div className="font-bold text-white group-hover:text-emerald-300 flex items-center justify-between text-xs">
+                      <span>📥 Formato CSV</span>
+                      <span className="text-[10px] font-mono bg-white/10 px-1 rounded">.CSV</span>
+                    </div>
+                    <p className="text-[10px] text-white/50 mt-1">Delimitado por punto y coma (;) con codificación UTF-8</p>
+                  </button>
+                </div>
+              </div>
+            </div>
           </section>
         )}
 
@@ -3799,7 +4314,7 @@ export default function SuiteApp() {
                   </span>
                 </h1>
                 <p className="text-xs md:text-sm text-white/60 mt-0.5">
-                  Ecosistema de interconexión directa entre empresas para compartir picos de demanda, subcontratación de talleres, compras conjuntas y logística.
+                  Ecosistema de interconexión directa entre empresas para compartir picos de demanda y reparto colaborativo de pedidos de bienes y servicios. Comisión por defecto: <strong>5%</strong> por desvío finalizado con éxito.
                 </p>
               </div>
 
@@ -3833,6 +4348,21 @@ export default function SuiteApp() {
               </div>
             ) : (
               <div className="space-y-4">
+                {/* Banner de Comisión de Desvío */}
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">🤝</span>
+                    <div>
+                      <strong className="text-amber-300 block">Comisión Estándar por Desvío de Pedido: {comisionDesvioPorcentaje}%</strong>
+                      <span className="text-white/70 text-[11px]">Se devenga y liquida automáticamente entre empresas tras la finalización exitosa del servicio o suministro.</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-white/60">Desvíos completados:</span>
+                    <span className="font-mono font-bold text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded">{desviosFinalizadosIds.length}</span>
+                  </div>
+                </div>
+
                 {/* Filtros */}
                 <div className="flex items-center gap-2 text-xs">
                   <span className="text-white/50">Mostrar:</span>
@@ -3855,54 +4385,72 @@ export default function SuiteApp() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {demandasRed
                     .filter(d => filtroRed === 'TODAS' || d.tipo === filtroRed)
-                    .map(dem => (
-                      <div key={dem.id} className="bg-[#0e0c1d] border border-white/8 rounded-2xl p-5 space-y-3 text-xs">
-                        <div className="flex justify-between items-start gap-2">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                                dem.tipo === 'DEMANDA'
-                                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                                  : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                              }`}>
-                                {dem.tipo}
-                              </span>
-                              <span className="text-[10px] text-white/50 font-mono">{dem.id}</span>
-                              <span className="text-[10px] bg-white/5 text-white/70 px-2 py-0.5 rounded">
-                                {dem.categoria}
-                              </span>
+                    .map(dem => {
+                      const finalizado = desviosFinalizadosIds.includes(dem.id);
+                      return (
+                        <div key={dem.id} className="bg-[#0e0c1d] border border-white/8 rounded-2xl p-5 space-y-3 text-xs">
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                                  dem.tipo === 'DEMANDA'
+                                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                                    : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                }`}>
+                                  {dem.tipo}
+                                </span>
+                                <span className="text-[10px] text-white/50 font-mono">{dem.id}</span>
+                                <span className="text-[10px] bg-white/5 text-white/70 px-2 py-0.5 rounded">
+                                  {dem.categoria}
+                                </span>
+                              </div>
+                              <h4 className="text-sm font-bold text-white">{dem.titulo}</h4>
                             </div>
-                            <h4 className="text-sm font-bold text-white">{dem.titulo}</h4>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                              finalizado ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : dem.urgencia === 'ALTA' ? 'bg-amber-500/20 text-amber-300' : 'bg-white/10 text-white/60'
+                            }`}>
+                              {finalizado ? '✓ Desvío Finalizado' : `Urgencia ${dem.urgencia}`}
+                            </span>
                           </div>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                            dem.urgencia === 'ALTA' ? 'bg-amber-500/20 text-amber-300' : 'bg-white/10 text-white/60'
-                          }`}>
-                            Urgencia {dem.urgencia}
-                          </span>
-                        </div>
 
-                        <p className="text-white/70 text-[11px] leading-relaxed bg-white/[0.02] p-3 rounded-xl border border-white/5">
-                          {dem.descripcion}
-                        </p>
+                          <p className="text-white/70 text-[11px] leading-relaxed bg-white/[0.02] p-3 rounded-xl border border-white/5">
+                            {dem.descripcion}
+                          </p>
 
-                        <div className="grid grid-cols-2 gap-2 text-[11px] text-white/60">
-                          <div>Empresa: <strong className="text-white">{dem.empresaEmisora}</strong></div>
-                          <div>Ubicación: <strong className="text-white">{dem.ubicacion}</strong></div>
-                          <div>Presupuesto: <strong className="text-emerald-400 font-mono">{dem.presupuestoEstimado}</strong></div>
-                          <div>Publicado: <span className="text-white/80">{dem.fechaPublicacion}</span></div>
-                        </div>
+                          <div className="grid grid-cols-2 gap-2 text-[11px] text-white/60">
+                            <div>Empresa: <strong className="text-white">{dem.empresaEmisora}</strong></div>
+                            <div>Ubicación: <strong className="text-white">{dem.ubicacion}</strong></div>
+                            <div>Presupuesto: <strong className="text-emerald-400 font-mono">{dem.presupuestoEstimado}</strong></div>
+                            <div>Comisión (5%): <span className="text-amber-400 font-mono font-bold">5% devengada</span></div>
+                          </div>
 
-                        <div className="flex justify-between items-center pt-2 border-t border-white/5">
-                          <span className="text-[11px] text-white/40">Contacto: {dem.contacto}</span>
-                          <button
-                            onClick={() => showNotice(`🤝 Conexión enviada a ${dem.empresaEmisora} para la referencia ${dem.id}. Gestarian B2B ha enlazado vuestras sedes.`)}
-                            className="bg-amber-500 hover:bg-amber-400 text-black font-semibold text-xs px-3.5 py-1.5 rounded-lg transition-all shadow"
-                          >
-                            Conectar & Responder
-                          </button>
+                          <div className="flex justify-between items-center pt-2 border-t border-white/5">
+                            <span className="text-[11px] text-white/40">Contacto: {dem.contacto}</span>
+                            <div className="flex items-center gap-2">
+                              {!finalizado ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleFinalizarDesvioInterempresas(dem.id, dem.titulo)}
+                                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs px-3 py-1.5 rounded-lg transition-all shadow"
+                                >
+                                  Finalizar Desvío (5%)
+                                </button>
+                              ) : (
+                                <span className="text-emerald-400 text-xs font-bold font-mono">
+                                  ✓ Liquidado con éxito
+                                </span>
+                              )}
+                              <button
+                                onClick={() => showNotice(`🤝 Conexión enviada a ${dem.empresaEmisora} para la referencia ${dem.id}. Gestarian B2B ha enlazado vuestras sedes.`)}
+                                className="bg-amber-500 hover:bg-amber-400 text-black font-semibold text-xs px-3.5 py-1.5 rounded-lg transition-all shadow"
+                              >
+                                Conectar
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                 </div>
               </div>
             )}
@@ -4338,6 +4886,16 @@ export default function SuiteApp() {
           onNotice={showNotice}
         />
       )}
+
+      {/* MODAL 6: LECTURA OCR DE FACTURAS FÍSICAS Y TICKETS */}
+      <ModalOCRFactura
+        isOpen={isModalOCROpen}
+        onClose={() => setIsModalOCROpen(false)}
+        onFacturaDetectada={(nuevaFactura) => {
+          setFacturasRecibidas(prev => [nuevaFactura, ...prev]);
+          showNotice(`✓ Factura recibida de ${nuevaFactura.cliente.razon_social} registrada con éxito mediante OCR.`);
+        }}
+      />
     </div>
   );
 }

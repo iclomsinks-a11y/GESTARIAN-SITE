@@ -17,11 +17,20 @@ export interface Empleado {
   nombre: string;
   apellidos: string;
   email: string;
+  telefono?: string;
+  direccion?: string;
   grupoCotizacion: number; // 1 a 11
   puesto: string;
+  epigrafeActividad: string; // Epígrafe según categoría de actividad
+  rolPlataforma: 'ADMINISTRADOR' | 'CONTABLE' | 'RESPONSABLE' | 'EMPLEADO';
+  permisos: string[];
   cnaeEmpresa: string; // ej: 4520 Mantenimiento y reparación de vehículos de motor
   convenioColectivo: string;
   tipoContrato: 'INDEFINIDO' | 'TEMPORAL' | 'PRACTICAS' | 'FORMACION';
+  jornada: 'COMPLETA' | 'PARCIAL';
+  horasMensuales: number; // 160h por defecto completa, 80h media jornada
+  controlHorarioActivo: boolean; // casilla para activar o desactivar el control horario
+  horasRegistradasMes?: number;
   fechaInicioContrato: string;
   fechaFinContrato?: string; // Para avisos SEPE
   periodoPruebaFin?: string; // Para avisos SEPE

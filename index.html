@@ -46,13 +46,14 @@
     <nav class="header-nav" aria-label="Navegación principal">
       <a href="#universo" class="nav-link" id="nav-universo">🌌 El Universo</a>
       <a href="#planes" class="nav-link" id="nav-planes">🪐 Planes</a>
-      <a href="#suite-workspace" class="nav-link" id="nav-suite" style="color: var(--c-gold-2); font-weight: 700;">⚡ Suite Unificada</a>
-      <a href="#clientes" class="nav-link" style="color: #d8b4fe; font-weight: 700;" onclick="window.location.hash='clientes'; document.getElementById('suite-workspace')?.scrollIntoView({behavior:'smooth'})">👥 Clientes</a>
-      <a href="#nominas" class="nav-link" onclick="window.location.hash='nominas'; document.getElementById('suite-workspace')?.scrollIntoView({behavior:'smooth'})">💼 Nóminas (TGSS)</a>
-      <a href="#activos" class="nav-link" onclick="window.location.hash='activos'; document.getElementById('suite-workspace')?.scrollIntoView({behavior:'smooth'})">🏢 Activos</a>
-      <a href="#balances" class="nav-link" onclick="window.location.hash='balances'; document.getElementById('suite-workspace')?.scrollIntoView({behavior:'smooth'})">📊 Balances</a>
-      <a href="#aeat" class="nav-link" onclick="window.location.hash='aeat'; document.getElementById('suite-workspace')?.scrollIntoView({behavior:'smooth'})">🏛️ AEAT</a>
-      <a href="#red_empresarial" class="nav-link" onclick="window.location.hash='red_empresarial'; document.getElementById('suite-workspace')?.scrollIntoView({behavior:'smooth'})">🤝 Red B2B</a>
+      <a href="#lite" class="nav-link" onclick="window.location.hash='lite'; document.getElementById('suite-workspace')?.scrollIntoView({behavior:'smooth'})" style="color: #7dd3fc;">🪐 Lite</a>
+      <a href="#quick" class="nav-link" onclick="window.location.hash='quick'; document.getElementById('suite-workspace')?.scrollIntoView({behavior:'smooth'})" style="color: #c084fc;">🚀 Quick</a>
+      <a href="#pro" class="nav-link" onclick="window.location.hash='pro'; document.getElementById('suite-workspace')?.scrollIntoView({behavior:'smooth'})" style="color: #34d399; font-weight: 700;">⭐ Pro</a>
+      <a href="#enterprise" class="nav-link" onclick="window.location.hash='enterprise'; document.getElementById('suite-workspace')?.scrollIntoView({behavior:'smooth'})" style="color: var(--c-gold-2); font-weight: 700;">👑 Enterprise</a>
+      <a href="#clientes" class="nav-link" style="color: #d8b4fe;" onclick="window.location.hash='clientes'; document.getElementById('suite-workspace')?.scrollIntoView({behavior:'smooth'})">👥 Clientes</a>
+      <a href="#nominas" class="nav-link" onclick="window.location.hash='nominas'; document.getElementById('suite-workspace')?.scrollIntoView({behavior:'smooth'})">👥 Empleados & Nóminas</a>
+      <a href="#balances" class="nav-link" onclick="window.location.hash='balances'; document.getElementById('suite-workspace')?.scrollIntoView({behavior:'smooth'})">📊 Balances & Gestoría</a>
+      <a href="#red_empresarial" class="nav-link" onclick="window.location.hash='red_empresarial'; document.getElementById('suite-workspace')?.scrollIntoView({behavior:'smooth'})">🤝 Red B2B (5%)</a>
     </nav>
   </header>
 
@@ -63,19 +64,24 @@
       <div class="hero-stars"></div>
 
       <h1>Ecosistema inteligente de <span class="accent">gestión documental</span></h1>
-      <p class="hero-sub">Automatiza tu gestión documental con IA.</p>
+      <p class="hero-sub">4 Versiones en un código unificado: Lite, Quick, Pro y Enterprise. Automatiza facturas, empleados, balances y red interempresas.</p>
 
-      <div class="hero-actions">
-        <a href="#universo" class="btn btn-primary" id="hero-explore" onclick="window.enterUniverseIntro && window.enterUniverseIntro(event)">
-          Explorar el Universo
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+      <div class="hero-actions" style="flex-wrap: wrap; justify-content: center; gap: 0.5rem;">
+        <a href="#lite" class="btn btn-secondary" onclick="window.location.hash='lite'; document.getElementById('suite-workspace')?.scrollIntoView({behavior:'smooth'})" style="border: 1px solid rgba(125,211,252,0.4); color: #7dd3fc">
+          🪐 Entrar a Lite
         </a>
-        <a href="#suite-workspace" class="btn btn-secondary" style="border: 1px solid rgba(255,255,255,0.18);">
-          Abrir Suite Unificada
+        <a href="#quick" class="btn btn-secondary" onclick="window.location.hash='quick'; document.getElementById('suite-workspace')?.scrollIntoView({behavior:'smooth'})" style="border: 1px solid rgba(192,132,252,0.4); color: #c084fc">
+          🚀 Entrar a Quick
         </a>
-        <a href="#clientes" class="btn btn-secondary" onclick="window.location.hash='clientes'; document.getElementById('suite-workspace')?.scrollIntoView({behavior:'smooth'})" style="border: 1px solid rgba(168,85,247,0.4); color: #d8b4fe">
-          👥 Clientes
+        <a href="#pro" class="btn btn-primary" onclick="window.location.hash='pro'; document.getElementById('suite-workspace')?.scrollIntoView({behavior:'smooth'})" style="font-weight: 700;">
+          ⭐ Entrar a Pro
         </a>
+        <a href="#enterprise" class="btn btn-secondary" onclick="window.location.hash='enterprise'; document.getElementById('suite-workspace')?.scrollIntoView({behavior:'smooth'})" style="border: 1px solid rgba(245,196,81,0.5); color: #ffe7a3">
+          👑 Entrar a Enterprise
+        </a>
+        <button type="button" class="btn btn-secondary" onclick="window.dispatchEvent(new Event('beforeinstallprompt')); alert('📲 Puedes instalar Gestarian en tu ordenador Windows o dispositivo móvil desde el menú \'Instalar aplicación / Añadir a pantalla de inicio\' de tu navegador.');" style="border: 1px solid rgba(255,255,255,0.25);">
+          📲 Instalar App Local (PWA)
+        </button>
       </div>
 
       <a href="#universo" class="scroll-cue" aria-label="Ir al Universo GESTARIAN"><span class="mouse"></span>Desliza</a>
